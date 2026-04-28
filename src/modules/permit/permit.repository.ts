@@ -59,12 +59,9 @@ export class PermitRepository {
 
     return {
       items,
-      meta: {
-        page: filters.page,
-        limit: filters.limit,
-        total,
-        totalPages: Math.ceil(total / filters.limit),
-      },
+      page: filters.page,
+      limit: filters.limit,
+      total: Number(countResult?.count ?? 0),
     }
   }
 

@@ -1,5 +1,6 @@
 import { Context } from 'hono'
 import { AttendanceModule } from './attendance.modul'
+import { paginatedResponse, successResponse } from '../../lib/response'
 
 export class AttendanceController {
   private module = new AttendanceModule()
@@ -11,10 +12,10 @@ export class AttendanceController {
     const result = await this.module.processCheckIn(user.id, body)
 
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data }, result.status as any)
+    return c.json(successResponse(result.data, 'Check-in successful'), 201)
   }
 
   async checkOut(c: Context) {
@@ -24,10 +25,10 @@ export class AttendanceController {
     const result = await this.module.processCheckOut(user.id, body)
 
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data }, result.status as any)
+    return c.json(successResponse(result.data, 'Check-out successful'), 201)
   }
 
   async getMyHistory(c: Context) {
@@ -37,10 +38,11 @@ export class AttendanceController {
     const result = await this.module.fetchHistory(user.id, query)
 
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data })
+    const { items, page, limit, total } = result.data
+    return c.json(paginatedResponse(items, { page, limit, total }))
   }
 
   async getAllHistory(c: Context) {
@@ -49,10 +51,11 @@ export class AttendanceController {
     const result = await this.module.fetchAllHistory(query)
 
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data })
+    const { items, page, limit, total } = result.data
+    return c.json(paginatedResponse(items, { page, limit, total }))
   }
 
   async getRecap(c: Context) {
@@ -61,10 +64,10 @@ export class AttendanceController {
     const result = await this.module.fetchRecap(query)
 
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data })
+    return c.json(successResponse(result.data))
   }
 
   async getMapPoints(c: Context) {
@@ -72,6 +75,6 @@ export class AttendanceController {
 
     const result = await this.module.fetchMapPoints(date)
 
-    return c.json({ data: result.data })
+    return c.json(successResponse(result.data))
   }
 }

@@ -1,52 +1,53 @@
 import { Context } from 'hono'
 import { UserModule } from './user.modul'
+import { paginatedResponse, successResponse } from '../../lib/response'
 
 export class UserController {
-  private logic = new UserModule()
+  private module = new UserModule()
 
   async findAll(c: Context) {
     const query = c.req.query()
-    const result = await this.logic.fetchAll(query)
-    
+    const result = await this.module.fetchAll(query)
+
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data })
+    const { items, page, limit, total } = result.data
+    return c.json(paginatedResponse(items, { page, limit, total }))
   }
 
   async findOne(c: Context) {
     const id = c.req.param('id')!
-    const result = await this.logic.fetchOne(id)
-    
+    const result = await this.module.fetchOne(id)
+
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data })
+    return c.json(successResponse(result.data, 'User fetched'))
   }
 
   async create(c: Context) {
     const body = await c.req.json()
-    const result = await this.logic.processCreate(body)
-    
+    const result = await this.module.processCreate(body)
+
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data }, result.status as any)
+    return c.json(successResponse(result.data, 'User created'), 201)
   }
 
   async update(c: Context) {
     const id = c.req.param('id')!
     const body = await c.req.json()
-    
-    const result = await this.logic.processUpdate(id, body)
-    
+    const result = await this.module.processUpdate(id, body)
+
     if (result.error) {
-      return c.json({ error: result.error }, result.status as any)
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json({ data: result.data })
+    return c.json(successResponse(result.data, 'User updated'))
   }
 }
