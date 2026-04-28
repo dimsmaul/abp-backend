@@ -96773,9 +96773,19 @@ function createApp() {
 
 // src/vercel.ts
 var app = createApp();
-var vercel_default = handle(app);
+var GET = handle(app);
+var POST = handle(app);
+var PATCH = handle(app);
+var PUT = handle(app);
+var DELETE = handle(app);
+var OPTIONS = handle(app);
 export {
-  vercel_default as default
+  DELETE,
+  GET,
+  OPTIONS,
+  PATCH,
+  POST,
+  PUT
 };
 /*! Bundled license information:
 
