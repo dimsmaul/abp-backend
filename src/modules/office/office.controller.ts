@@ -1,31 +1,24 @@
 import { Context } from 'hono'
-import { UserModule } from './user.modul'
-import { paginatedResponse, successResponse } from '../../lib/response'
+import { OfficeModule } from './office.modul'
+import { successResponse } from '../../lib/response'
 
-export class UserController {
-  private module = new UserModule()
+export class OfficeController {
+  private module = new OfficeModule()
 
   async findAll(c: Context) {
-    const query = c.req.query()
-    const result = await this.module.fetchAll(query)
-
-    if (result.error) {
-      return c.json({ message: result.error.message, error: result.error }, result.status as any)
-    }
-
-    const { items, page, limit, total } = result.data
-    return c.json(paginatedResponse(items, { page, limit, total }))
+    const result = await this.module.fetchAll()
+    return c.json(successResponse(result.data, 'Offices fetched'))
   }
 
   async findOne(c: Context) {
-    const id = c.req.param('id')!
+    const id = c.req.param('id') as string
     const result = await this.module.fetchOne(id)
 
     if (result.error) {
       return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json(successResponse(result.data, 'User fetched'))
+    return c.json(successResponse(result.data, 'Office fetched'))
   }
 
   async create(c: Context) {
@@ -36,11 +29,11 @@ export class UserController {
       return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json(successResponse(result.data, 'User created'), 201)
+    return c.json(successResponse(result.data, 'Office created'), 201)
   }
 
   async update(c: Context) {
-    const id = c.req.param('id')!
+    const id = c.req.param('id') as string
     const body = await c.req.json()
     const result = await this.module.processUpdate(id, body)
 
@@ -48,6 +41,12 @@ export class UserController {
       return c.json({ message: result.error.message, error: result.error }, result.status as any)
     }
 
-    return c.json(successResponse(result.data, 'User updated'))
+    return c.json(successResponse(result.data, 'Office updated'))
+  }
+
+  async delete(c: Context) {
+    const id = c.req.param('id') as string
+    await this.module.processDelete(id)
+    return c.json({ message: 'Office deleted', data: null })
   }
 }

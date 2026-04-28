@@ -1,6 +1,9 @@
 import { AttendanceRepository } from './attendance.repository'
 import { checkInSchema, checkOutSchema, attendanceQuerySchema, recapQuerySchema } from './attendance.schema'
 import { uploadToR2 } from '../../lib/s3'
+import { OfficeRepository } from '../office/office.repository'
+import { calculateDistance } from '../../lib/geo'
+import { UserRepository } from '../user/user.repository'
 
 export class AttendanceModule {
   private repository = new AttendanceRepository()
@@ -23,10 +26,46 @@ export class AttendanceModule {
       return { error: { code: 'MISSING_PHOTO', message: 'Photo is required' }, status: 422 }
     }
 
+    // --- Geofencing Validation ---
+    const officeRepo = new OfficeRepository()
+    const offices = await officeRepo.findAll()
+    
+    let isWithinZone = false
+    let nearestOfficeName = ""
+
+    if (offices.length === 0) {
+      // If no offices defined, default to true or some other policy
+      isWithinZone = true 
+    } else {
+      for (const office of offices) {
+        const distance = calculateDistance(
+          validated.data.latitude,
+          validated.data.longitude,
+          Number(office.latitude),
+          Number(office.longitude)
+        )
+        if (distance <= office.radius) {
+          isWithinZone = true
+          nearestOfficeName = office.name
+          break
+        }
+      }
+    }
+
+    // --- Face Recognition Scaffolding ---
+    const userRepo = new UserRepository()
+    const user = await userRepo.findById(userId)
+    
+    if (user?.faceRecognitionEnabled) {
+      // TODO: Implement actual face recognition logic here
+      // For now, we assume it's valid if the photo is present
+      console.log(`[FaceRecognition] Checking face for user ${userId}`)
+    }
+
     const key = `attendance/check-in/${userId}-${crypto.randomUUID()}.jpg`
     const photoUrl = await uploadToR2(photo, key)
     
-    const locationName = "Jl. Mock Location, Jakarta" 
+    const locationName = nearestOfficeName || "Field (Outside Zone)"
     
     const data = await this.repository.create({
       id: crypto.randomUUID(),
@@ -36,7 +75,7 @@ export class AttendanceModule {
       latitude: validated.data.latitude,
       longitude: validated.data.longitude,
       locationName,
-      isWithinZone: true, 
+      isWithinZone, 
       serverTime: new Date(),
     })
 
@@ -66,10 +105,35 @@ export class AttendanceModule {
       return { error: { code: 'MISSING_PHOTO', message: 'Photo is required' }, status: 422 }
     }
 
+    // --- Geofencing Validation (Same as Check-In) ---
+    const officeRepo = new OfficeRepository()
+    const offices = await officeRepo.findAll()
+    
+    let isWithinZone = false
+    let nearestOfficeName = ""
+
+    if (offices.length === 0) {
+      isWithinZone = true 
+    } else {
+      for (const office of offices) {
+        const distance = calculateDistance(
+          validated.data.latitude,
+          validated.data.longitude,
+          Number(office.latitude),
+          Number(office.longitude)
+        )
+        if (distance <= office.radius) {
+          isWithinZone = true
+          nearestOfficeName = office.name
+          break
+        }
+      }
+    }
+
     const key = `attendance/check-out/${userId}-${crypto.randomUUID()}.jpg`
     const photoUrl = await uploadToR2(photo, key)
 
-    const locationName = "Jl. Mock Location, Jakarta"
+    const locationName = nearestOfficeName || "Field (Outside Zone)"
 
     const data = await this.repository.create({
       id: crypto.randomUUID(),
@@ -79,7 +143,7 @@ export class AttendanceModule {
       latitude: validated.data.latitude,
       longitude: validated.data.longitude,
       locationName,
-      isWithinZone: true,
+      isWithinZone,
       serverTime: new Date(),
     })
 
