@@ -9,6 +9,13 @@ export const auth = betterAuth({
         type: "postgres", // Specify the database provider
     }),
     trustedOrigins: ["http://localhost:5173", "https://fieldtrack.vercel.app"],
+    advanced: {
+        defaultCookieAttributes: {
+            sameSite: "none",
+            secure: true,
+            path: "/",
+        },
+    },
     emailAndPassword: {
         enabled: true,
     },
