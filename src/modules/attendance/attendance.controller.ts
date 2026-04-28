@@ -1,7 +1,8 @@
 import { Context } from 'hono'
 import { AttendanceRepository } from './attendance.repository'
 import { checkInSchema, checkOutSchema, attendanceQuerySchema } from './attendance.schema'
-import { crypto } from 'bun'
+import { randomUUIDv7 } from 'bun'
+import { uploadToR2 } from '../../lib/s3'
 
 export class AttendanceController {
   private repository = new AttendanceRepository()
@@ -22,12 +23,19 @@ export class AttendanceController {
       return c.json({ error: { code: 'ALREADY_CHECKED_IN', message: 'You have already checked in today' } }, 409)
     }
 
-    // Mock photo processing & geocoding
-    const photoUrl = `https://storage.fieldtrack.com/watermarked-${crypto.randomUUIDv7()}.jpg`
+    // Handle photo upload
+    const photo = body['photo'] as File
+    if (!photo) {
+      return c.json({ error: { code: 'MISSING_PHOTO', message: 'Photo is required' } }, 422)
+    }
+
+    const key = `attendance/check-in/${user.id}-${randomUUIDv7()}.jpg`
+    const photoUrl = await uploadToR2(photo, key)
+    
     const locationName = "Jl. Mock Location, Jakarta" 
     
     const data = await this.repository.create({
-      id: crypto.randomUUIDv7(),
+      id: randomUUIDv7(),
       userId: user.id,
       type: 'check_in',
       photoUrl,
@@ -62,11 +70,18 @@ export class AttendanceController {
       return c.json({ error: { code: 'ALREADY_CHECKED_OUT', message: 'You have already checked out today' } }, 409)
     }
 
-    const photoUrl = `https://storage.fieldtrack.com/watermarked-${crypto.randomUUIDv7()}.jpg`
+    const photo = body['photo'] as File
+    if (!photo) {
+      return c.json({ error: { code: 'MISSING_PHOTO', message: 'Photo is required' } }, 422)
+    }
+
+    const key = `attendance/check-out/${user.id}-${randomUUIDv7()}.jpg`
+    const photoUrl = await uploadToR2(photo, key)
+
     const locationName = "Jl. Mock Location, Jakarta"
 
     const data = await this.repository.create({
-      id: crypto.randomUUIDv7(),
+      id: randomUUIDv7(),
       userId: user.id,
       type: 'check_out',
       photoUrl,

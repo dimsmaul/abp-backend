@@ -1,7 +1,8 @@
 import { Context } from 'hono'
 import { ReportRepository } from './report.repository'
 import { createReportSchema, validateReportSchema, reportQuerySchema } from './report.schema'
-import { crypto } from 'bun'
+import { randomUUIDv7 } from 'bun'
+import { uploadToR2 } from '../../lib/s3'
 
 export class ReportController {
   private repository = new ReportRepository()
@@ -15,10 +16,16 @@ export class ReportController {
       return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid data', details: validated.error.flatten() } }, 422)
     }
 
-    const photoUrl = `https://storage.fieldtrack.com/report-${crypto.randomUUIDv7()}.jpg`
+    const photo = body['photo'] as File
+    if (!photo) {
+      return c.json({ error: { code: 'MISSING_PHOTO', message: 'Photo is required' } }, 422)
+    }
+
+    const key = `reports/${user.id}-${randomUUIDv7()}.jpg`
+    const photoUrl = await uploadToR2(photo, key)
 
     const data = await this.repository.create({
-      id: crypto.randomUUIDv7(),
+      id: randomUUIDv7(),
       userId: user.id,
       category: validated.data.category,
       description: validated.data.description,
@@ -92,7 +99,7 @@ export class ReportController {
     }
 
     await this.repository.validate(id, {
-      id: crypto.randomUUIDv7(),
+      id: randomUUIDv7(),
       reportId: id,
       validatedBy: user.id,
       status: validated.data.status,
