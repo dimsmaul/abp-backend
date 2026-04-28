@@ -8,7 +8,7 @@ export const auth = betterAuth({
     database: kyselyAdapter(db, {
         type: "postgres", // Specify the database provider
     }),
-    trustedOrigins: ["http://localhost:5173", "https://fieldtrack.vercel.app"],
+    trustedOrigins: ["http://localhost:5173", "https://fieldtrack.vercel.app", 'https://stg-fieldtrack.vercel.app'],
     advanced: {
         defaultCookieAttributes: {
             sameSite: "none",
