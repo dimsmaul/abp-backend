@@ -8,6 +8,7 @@
     "build": "bun build ./src/index.ts --outdir ./dist --target bun"
   },
   "dependencies": {
+    "better-auth": "^1.6.9",
     "hono": "^4.12.15",
     "kysely": "^0.28.16",
     "pg": "^8.20.0",
