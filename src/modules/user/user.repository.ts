@@ -1,18 +1,37 @@
 import { db } from '../../lib/database'
+import { UserTable } from '../../lib/types'
 
 export class UserRepository {
   async findAll() {
-    // return await db.selectFrom('users').selectAll().execute()
-    return []
+    return await db.selectFrom('user').selectAll().execute()
   }
 
-  async findById(id: string | number) {
-    // return await db.selectFrom('users').selectAll().where('id', '=', id as any).executeTakeFirst()
-    return null
+  async findById(id: string) {
+    return await db.selectFrom('user').selectAll().where('id', '=', id).executeTakeFirst()
   }
 
-  async create(data: any) {
-    // return await db.insertInto('users').values(data).returningAll().executeTakeFirst()
-    return data
+  async create(data: Omit<UserTable, 'createdAt' | 'updatedAt' | 'emailVerified'>) {
+    return await db
+      .insertInto('user')
+      .values({
+        ...data,
+        emailVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow()
+  }
+
+  async update(id: string, data: Partial<Omit<UserTable, 'id' | 'createdAt'>>) {
+    return await db
+      .updateTable('user')
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirst()
   }
 }
