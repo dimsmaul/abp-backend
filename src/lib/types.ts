@@ -5,6 +5,9 @@ export interface Database {
   session: SessionTable
   account: AccountTable
   verification: VerificationTable
+  attendance: AttendanceTable
+  fieldReport: FieldReportTable
+  reportValidation: ReportValidationTable
 }
 
 export interface UserTable {
@@ -13,6 +16,8 @@ export interface UserTable {
   email: string
   emailVerified: boolean
   image?: string
+  role: 'employee' | 'admin' | 'manager'
+  department?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -51,5 +56,39 @@ export interface VerificationTable {
   expiresAt: Date
   createdAt?: Date
   updatedAt?: Date
+}
+
+export interface AttendanceTable {
+  id: string
+  userId: string
+  type: 'check_in' | 'check_out'
+  photoUrl: string
+  latitude: number
+  longitude: number
+  locationName?: string
+  isWithinZone: boolean
+  serverTime: Date
+  createdAt: Generated<Date>
+}
+
+export interface FieldReportTable {
+  id: string
+  userId: string
+  category: 'weather' | 'technical' | 'progress' | 'other'
+  description: string
+  photoUrl: string
+  latitude: number
+  longitude: number
+  status: 'pending' | 'approved' | 'rejected' | 'need_revision'
+  createdAt: Generated<Date>
+}
+
+export interface ReportValidationTable {
+  id: string
+  reportId: string
+  validatedBy: string
+  status: 'approved' | 'rejected' | 'need_revision'
+  notes?: string
+  validatedAt: Generated<Date>
 }
 
