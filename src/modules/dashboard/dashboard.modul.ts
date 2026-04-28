@@ -16,16 +16,4 @@ export class DashboardModule {
       status: 200
     }
   }
-
-  async fetchMapPoints(dateStr?: string) {
-    const date = dateStr ? new Date(dateStr) : new Date()
-    const startOfDay = new Date(date)
-    startOfDay.setHours(0, 0, 0, 0)
-    const endOfDay = new Date(date)
-    endOfDay.setHours(23, 59, 59, 999)
-
-    const points = await this.repository.findPointsByDate(startOfDay, endOfDay)
-    
-    return { data: { points }, status: 200 }
-  }
 }

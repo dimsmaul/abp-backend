@@ -8,10 +8,4 @@ export class DashboardController {
     const result = await this.logic.fetchSummary()
     return c.json({ data: result.data })
   }
-
-  async getMapPoints(c: Context) {
-    const date = c.req.query('date')
-    const result = await this.logic.fetchMapPoints(date)
-    return c.json({ data: result.data })
-  }
 }
