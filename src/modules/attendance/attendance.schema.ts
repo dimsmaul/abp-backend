@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from '../../lib/openapi'
 
 export const checkInSchema = z.object({
   latitude: z.coerce.number().min(-90).max(90),

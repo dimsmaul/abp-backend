@@ -8,6 +8,8 @@ export interface Database {
   attendance: AttendanceTable
   fieldReport: FieldReportTable
   reportValidation: ReportValidationTable
+  office: OfficeTable
+  permit: PermitTable
 }
 
 export interface UserTable {
@@ -18,6 +20,8 @@ export interface UserTable {
   image?: string
   role: 'employee' | 'admin' | 'manager'
   department?: string
+  faceEmbedding?: string
+  faceRecognitionEnabled: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -90,5 +94,30 @@ export interface ReportValidationTable {
   status: 'approved' | 'rejected' | 'need_revision'
   notes?: string
   validatedAt: Generated<Date>
+}
+
+export interface OfficeTable {
+  id: string
+  name: string
+  latitude: number
+  longitude: number
+  radius: number
+  address?: string
+  createdAt: Generated<Date>
+  updatedAt: Generated<Date>
+}
+
+export interface PermitTable {
+  id: string
+  userId: string
+  type: 'sick' | 'leave' | 'permit'
+  description: string
+  startDate: Date
+  endDate: Date
+  attachmentUrl?: string
+  status: 'pending' | 'approved' | 'rejected'
+  notes?: string
+  createdAt: Generated<Date>
+  updatedAt: Generated<Date>
 }
 
