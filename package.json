@@ -1,0 +1,20 @@
+{
+  "name": "backend",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "make:module": "bun scripts/make-module.ts",
+    "db:make": "bun scripts/make-migration.ts",
+    "db:migrate": "bun scripts/migrate.ts",
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun"
+  },
+  "dependencies": {
+    "hono": "^4.12.15",
+    "kysely": "^0.28.16",
+    "pg": "^8.20.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/pg": "^8.20.0"
+  }
+}
