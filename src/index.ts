@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
 import { cors } from 'hono/cors'
+import { handle } from 'hono/vercel'
 import { auth } from './lib/auth'
 import user from './modules/user/user.modul'
 import attendance from './modules/attendance/attendance.modul'
@@ -27,6 +28,12 @@ app.route('/api', dashboard)
 app.get('/', (c) => {
   return c.text('FieldTrack API is running!')
 })
+
+export const GET = handle(app)
+export const POST = handle(app)
+export const PATCH = handle(app)
+export const DELETE = handle(app)
+export const OPTIONS = handle(app)
 
 export default {
   port: 4000,
