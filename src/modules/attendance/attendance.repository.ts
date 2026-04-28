@@ -89,4 +89,57 @@ export class AttendanceRepository {
       },
     }
   }
+
+  async findRecapData(filters: {
+    from: string
+    to: string
+    userId?: string
+    department?: string
+  }) {
+    let query = db
+      .selectFrom('attendance')
+      .innerJoin('user', 'user.id', 'attendance.userId')
+      .select([
+        'attendance.userId',
+        'attendance.type',
+        'attendance.serverTime',
+        'attendance.isWithinZone',
+        'user.name as userName',
+        'user.department as userDepartment',
+      ])
+      .where('attendance.serverTime', '>=', new Date(filters.from))
+      .where('attendance.serverTime', '<=', new Date(filters.to))
+      .orderBy('attendance.userId')
+      .orderBy('attendance.serverTime', 'asc')
+
+    if (filters.userId) {
+      query = query.where('attendance.userId', '=', filters.userId)
+    }
+
+    if (filters.department) {
+      query = query.where('user.department', '=', filters.department)
+    }
+
+    return await query.execute()
+  }
+
+  async findMapPoints(start: Date, end: Date) {
+    return await db
+      .selectFrom('attendance')
+      .innerJoin('user', 'user.id', 'attendance.userId')
+      .select([
+        'attendance.id as attendanceId',
+        'attendance.userId',
+        'user.name as userName',
+        'attendance.type',
+        'attendance.latitude',
+        'attendance.longitude',
+        'attendance.locationName',
+        'attendance.isWithinZone',
+        'attendance.serverTime',
+      ])
+      .where('attendance.serverTime', '>=', start)
+      .where('attendance.serverTime', '<=', end)
+      .execute()
+  }
 }
