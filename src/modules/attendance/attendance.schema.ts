@@ -20,6 +20,14 @@ export const attendanceQuerySchema = z.object({
   type: z.enum(['check_in', 'check_out']).optional(),
 })
 
+export const recapQuerySchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  userId: z.string().optional(),
+  department: z.string().optional(),
+})
+
 export type CheckInInput = z.infer<typeof checkInSchema>
 export type CheckOutInput = z.infer<typeof checkOutSchema>
 export type AttendanceQuery = z.infer<typeof attendanceQuerySchema>
+export type RecapQuery = z.infer<typeof recapQuerySchema>

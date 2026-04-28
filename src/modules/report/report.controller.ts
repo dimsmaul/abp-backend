@@ -43,7 +43,7 @@ export class ReportController {
   }
 
   async getDetail(c: Context) {
-    const id = c.req.param('id')
+    const id = c.req.param('id')!
     const result = await this.logic.fetchDetail(id)
     
     if (result.error) {
@@ -54,7 +54,7 @@ export class ReportController {
   }
 
   async validate(c: Context) {
-    const id = c.req.param('id')
+    const id = c.req.param('id')!
     const user = c.get('user')
     const body = await c.req.json()
     

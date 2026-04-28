@@ -1,0 +1,348 @@
+### =========================================
+### FieldTrack API — Complete Test Suite
+### =========================================
+### Usage: Install "REST Client" extension in VS Code
+### Then click "Send Request" above each request
+### =========================================
+
+@baseUrl = http://localhost:4000
+@contentType = application/json
+
+
+### =========================================
+### AUTH ENDPOINTS (Better Auth)
+### =========================================
+
+### Register new user
+POST {{baseUrl}}/api/auth/sign-up/email
+Content-Type: {{contentType}}
+
+{
+  "name": "Budi Santoso",
+  "email": "budi@company.com",
+  "password": "StrongPass123!"
+}
+
+###
+
+### Login
+POST {{baseUrl}}/api/auth/sign-in/email
+Content-Type: {{contentType}}
+
+{
+  "email": "budi@company.com",
+  "password": "StrongPass123!"
+}
+
+###
+
+### Get current session
+GET {{baseUrl}}/api/auth/get-session
+
+###
+
+### Sign out
+POST {{baseUrl}}/api/auth/sign-out
+
+
+### =========================================
+### MOBILE — ATTENDANCE
+### =========================================
+
+### Check-in (multipart/form-data)
+### Note: Replace 'photo' with actual file path
+# POST {{baseUrl}}/api/mobile/attendances/check-in
+# Content-Type: multipart/form-data; boundary=----FormBoundary
+#
+# ------FormBoundary
+# Content-Disposition: form-data; name="latitude"
+#
+# -6.2088
+# ------FormBoundary
+# Content-Disposition: form-data; name="longitude"
+#
+# 106.8456
+# ------FormBoundary
+# Content-Disposition: form-data; name="photo"; filename="selfie.jpg"
+# Content-Type: image/jpeg
+#
+# < ./test-photo.jpg
+# ------FormBoundary--
+
+###
+
+### Check-out (multipart/form-data)
+### Same structure as check-in above
+# POST {{baseUrl}}/api/mobile/attendances/check-out
+# Content-Type: multipart/form-data; boundary=----FormBoundary
+#
+# ------FormBoundary
+# Content-Disposition: form-data; name="latitude"
+#
+# -6.2088
+# ------FormBoundary
+# Content-Disposition: form-data; name="longitude"
+#
+# 106.8456
+# ------FormBoundary
+# Content-Disposition: form-data; name="photo"; filename="selfie.jpg"
+# Content-Type: image/jpeg
+#
+# < ./test-photo.jpg
+# ------FormBoundary--
+
+###
+
+### Get my attendance history
+GET {{baseUrl}}/api/mobile/attendances?page=1&limit=10
+
+###
+
+### Get my attendance history with date filter
+GET {{baseUrl}}/api/mobile/attendances?page=1&limit=10&from=2026-04-01&to=2026-04-30
+
+
+### =========================================
+### MOBILE — FIELD REPORTS
+### =========================================
+
+### Create report (multipart/form-data)
+### Note: Replace 'photo' with actual file path
+# POST {{baseUrl}}/api/mobile/reports
+# Content-Type: multipart/form-data; boundary=----FormBoundary
+#
+# ------FormBoundary
+# Content-Disposition: form-data; name="category"
+#
+# technical
+# ------FormBoundary
+# Content-Disposition: form-data; name="description"
+#
+# Alat berat mengalami kerusakan pada bagian hydraulic system
+# ------FormBoundary
+# Content-Disposition: form-data; name="latitude"
+#
+# -6.2088
+# ------FormBoundary
+# Content-Disposition: form-data; name="longitude"
+#
+# 106.8456
+# ------FormBoundary
+# Content-Disposition: form-data; name="photo"; filename="report.jpg"
+# Content-Type: image/jpeg
+#
+# < ./test-photo.jpg
+# ------FormBoundary--
+
+###
+
+### Get my reports
+GET {{baseUrl}}/api/mobile/reports?page=1&limit=10
+
+###
+
+### Get my reports filtered by status
+GET {{baseUrl}}/api/mobile/reports?page=1&limit=10&status=pending
+
+###
+
+### Get report detail (replace :id with actual UUID)
+GET {{baseUrl}}/api/mobile/reports/REPLACE_WITH_REPORT_ID
+
+
+### =========================================
+### WEB — DASHBOARD
+### =========================================
+
+### Get dashboard summary
+GET {{baseUrl}}/api/web/dashboard/summary
+
+
+### =========================================
+### WEB — ATTENDANCE
+### =========================================
+
+### Get all attendance records
+GET {{baseUrl}}/api/web/attendances?page=1&limit=20
+
+###
+
+### Get attendance with filters
+GET {{baseUrl}}/api/web/attendances?page=1&limit=20&from=2026-04-01&to=2026-04-30&type=check_in
+
+###
+
+### Get attendance with department filter
+GET {{baseUrl}}/api/web/attendances?page=1&limit=20&department=Engineering
+
+###
+
+### Get attendance recap (work hours calculation)
+GET {{baseUrl}}/api/web/attendances/recap?from=2026-04-01&to=2026-04-30
+
+###
+
+### Get attendance recap for specific user
+GET {{baseUrl}}/api/web/attendances/recap?from=2026-04-01&to=2026-04-30&userId=REPLACE_WITH_USER_ID
+
+###
+
+### Get attendance recap for department
+GET {{baseUrl}}/api/web/attendances/recap?from=2026-04-01&to=2026-04-30&department=Engineering
+
+###
+
+### Get map points (today)
+GET {{baseUrl}}/api/web/attendances/map-points
+
+###
+
+### Get map points for specific date
+GET {{baseUrl}}/api/web/attendances/map-points?date=2026-04-28
+
+
+### =========================================
+### WEB — FIELD REPORTS
+### =========================================
+
+### Get all reports
+GET {{baseUrl}}/api/web/reports?page=1&limit=20
+
+###
+
+### Get reports filtered by status
+GET {{baseUrl}}/api/web/reports?page=1&limit=20&status=pending
+
+###
+
+### Get reports filtered by category
+GET {{baseUrl}}/api/web/reports?page=1&limit=20&category=technical
+
+###
+
+### Get report detail (replace :id with actual UUID)
+GET {{baseUrl}}/api/web/reports/REPLACE_WITH_REPORT_ID
+
+###
+
+### Validate report — Approve
+PATCH {{baseUrl}}/api/web/reports/REPLACE_WITH_REPORT_ID/validate
+Content-Type: {{contentType}}
+
+{
+  "status": "approved",
+  "notes": "Laporan diterima, terima kasih atas laporannya."
+}
+
+###
+
+### Validate report — Reject
+PATCH {{baseUrl}}/api/web/reports/REPLACE_WITH_REPORT_ID/validate
+Content-Type: {{contentType}}
+
+{
+  "status": "rejected",
+  "notes": "Laporan tidak sesuai dengan fakta di lapangan."
+}
+
+###
+
+### Validate report — Need Revision
+PATCH {{baseUrl}}/api/web/reports/REPLACE_WITH_REPORT_ID/validate
+Content-Type: {{contentType}}
+
+{
+  "status": "need_revision",
+  "notes": "Foto kurang jelas, mohon ambil ulang dari sudut berbeda."
+}
+
+
+### =========================================
+### WEB — USER MANAGEMENT (Admin only)
+### =========================================
+
+### Get all users
+GET {{baseUrl}}/api/web/users?page=1&limit=20
+
+###
+
+### Get users filtered by role
+GET {{baseUrl}}/api/web/users?page=1&limit=20&role=employee
+
+###
+
+### Get users filtered by department
+GET {{baseUrl}}/api/web/users?page=1&limit=20&department=Engineering
+
+###
+
+### Search users by name or email
+GET {{baseUrl}}/api/web/users?page=1&limit=20&search=budi
+
+###
+
+### Get user detail with stats (replace :id)
+GET {{baseUrl}}/api/web/users/REPLACE_WITH_USER_ID
+
+###
+
+### Create new user
+POST {{baseUrl}}/api/web/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Citra Dewi",
+  "email": "citra@company.com",
+  "password": "TempPass123!",
+  "role": "employee",
+  "department": "Operations"
+}
+
+###
+
+### Create manager user
+POST {{baseUrl}}/api/web/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Manager Andi",
+  "email": "andi@company.com",
+  "password": "TempPass123!",
+  "role": "manager",
+  "department": "Engineering"
+}
+
+###
+
+### Create admin user
+POST {{baseUrl}}/api/web/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Admin System",
+  "email": "admin@company.com",
+  "password": "AdminPass123!",
+  "role": "admin",
+  "department": "IT"
+}
+
+###
+
+### Update user role
+PATCH {{baseUrl}}/api/web/users/REPLACE_WITH_USER_ID
+Content-Type: {{contentType}}
+
+{
+  "role": "manager",
+  "department": "Operations"
+}
+
+###
+
+### Update user name
+PATCH {{baseUrl}}/api/web/users/REPLACE_WITH_USER_ID
+Content-Type: {{contentType}}
+
+{
+  "name": "Budi Santoso Jr."
+}

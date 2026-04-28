@@ -5,12 +5,18 @@ export class UserController {
   private logic = new UserModule()
 
   async findAll(c: Context) {
-    const result = await this.logic.fetchAll()
+    const query = c.req.query()
+    const result = await this.logic.fetchAll(query)
+    
+    if (result.error) {
+      return c.json({ error: result.error }, result.status as any)
+    }
+
     return c.json({ data: result.data })
   }
 
   async findOne(c: Context) {
-    const id = c.req.param('id')
+    const id = c.req.param('id')!
     const result = await this.logic.fetchOne(id)
     
     if (result.error) {
@@ -32,7 +38,7 @@ export class UserController {
   }
 
   async update(c: Context) {
-    const id = c.req.param('id')
+    const id = c.req.param('id')!
     const body = await c.req.json()
     
     const result = await this.logic.processUpdate(id, body)
