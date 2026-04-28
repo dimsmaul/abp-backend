@@ -14,5 +14,14 @@ export const updateUserSchema = z.object({
   department: z.string().optional(),
 })
 
+export const userQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  role: z.enum(['employee', 'manager', 'admin']).optional(),
+  department: z.string().optional(),
+  search: z.string().optional(),
+})
+
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
+export type UserQuery = z.infer<typeof userQuerySchema>

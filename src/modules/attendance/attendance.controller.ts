@@ -54,4 +54,24 @@ export class AttendanceController {
 
     return c.json({ data: result.data })
   }
+
+  async getRecap(c: Context) {
+    const query = c.req.query()
+    
+    const result = await this.logic.fetchRecap(query)
+    
+    if (result.error) {
+      return c.json({ error: result.error }, result.status as any)
+    }
+
+    return c.json({ data: result.data })
+  }
+
+  async getMapPoints(c: Context) {
+    const date = c.req.query('date')
+    
+    const result = await this.logic.fetchMapPoints(date)
+
+    return c.json({ data: result.data })
+  }
 }
