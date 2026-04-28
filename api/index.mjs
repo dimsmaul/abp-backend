@@ -95852,6 +95852,8 @@ var db = new Kysely({
 
 // src/lib/auth.ts
 var auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:4000",
+  basePath: "/api/auth",
   database: kyselyAdapter(db, {
     type: "postgres"
     // Specify the database provider
