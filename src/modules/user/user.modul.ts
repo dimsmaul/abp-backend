@@ -1,17 +1,22 @@
 import { UserRepository } from './user.repository'
-import { createUserSchema, updateUserSchema } from './user.schema'
+import { createUserSchema, updateUserSchema, userQuerySchema } from './user.schema'
 import { auth } from '../../lib/auth'
 
 export class UserModule {
   private repository = new UserRepository()
 
-  async fetchAll() {
-    const data = await this.repository.findAll()
+  async fetchAll(query: any) {
+    const validated = userQuerySchema.safeParse(query)
+    if (!validated.success) {
+      return { error: { code: 'VALIDATION_ERROR', message: 'Invalid query parameters' }, status: 422 }
+    }
+
+    const data = await this.repository.findAll(validated.data)
     return { data, status: 200 }
   }
 
   async fetchOne(id: string) {
-    const data = await this.repository.findById(id)
+    const data = await this.repository.findByIdWithStats(id)
     if (!data) return { error: { code: 'USER_NOT_FOUND', message: 'User not found' }, status: 404 }
     return { data, status: 200 }
   }

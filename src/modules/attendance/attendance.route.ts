@@ -12,5 +12,7 @@ attendance.get('/mobile/attendances', roleGuard(['employee']), (c) => controller
 
 // Web endpoints
 attendance.get('/web/attendances', roleGuard(['manager', 'admin']), (c) => controller.getAllHistory(c))
+attendance.get('/web/attendances/recap', roleGuard(['manager', 'admin']), (c) => controller.getRecap(c))
+attendance.get('/web/attendances/map-points', roleGuard(['manager', 'admin']), (c) => controller.getMapPoints(c))
 
 export default attendance
