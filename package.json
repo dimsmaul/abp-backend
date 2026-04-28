@@ -1,6 +1,5 @@
 {
   "name": "backend",
-  "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "make:module": "bun scripts/make-module.ts",
