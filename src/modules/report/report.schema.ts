@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from '../../lib/openapi'
 
 export const createReportSchema = z.object({
   category: z.enum(['weather', 'technical', 'progress', 'other']),
