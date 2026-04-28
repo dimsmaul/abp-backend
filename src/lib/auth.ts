@@ -6,6 +6,7 @@ export const auth = betterAuth({
     database: kyselyAdapter(db, {
         type: "postgres", // Specify the database provider
     }),
+    trustedOrigins: ["http://localhost:5173"],
     emailAndPassword: {
         enabled: true,
     }
