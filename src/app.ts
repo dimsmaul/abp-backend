@@ -12,7 +12,7 @@ export function createApp() {
 
   app.use('*', logger())
   app.use('*', cors({
-    origin: ['http://localhost:5173', 'https://fieldtrack.vercel.app'],
+    origin: ['http://localhost:5173', 'https://fieldtrack.vercel.app', 'https://stg-fieldtrack.vercel.app'],
     credentials: true,
   }))
 
