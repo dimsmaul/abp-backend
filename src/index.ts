@@ -3,10 +3,10 @@ import { logger } from 'hono/logger'
 import { cors } from 'hono/cors'
 import { handle } from 'hono/vercel'
 import { auth } from './lib/auth'
-import user from './modules/user/user.modul'
-import attendance from './modules/attendance/attendance.modul'
-import report from './modules/report/report.modul'
-import dashboard from './modules/dashboard/dashboard.modul'
+import user from './modules/user/user.route'
+import attendance from './modules/attendance/attendance.route'
+import report from './modules/report/report.route'
+import dashboard from './modules/dashboard/dashboard.route'
 
 const app = new Hono()
 

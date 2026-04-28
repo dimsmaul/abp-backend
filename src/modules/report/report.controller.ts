@@ -1,82 +1,56 @@
 import { Context } from 'hono'
-import { ReportRepository } from './report.repository'
-import { createReportSchema, validateReportSchema, reportQuerySchema } from './report.schema'
-import { randomUUIDv7 } from 'bun'
-import { uploadToR2 } from '../../lib/s3'
+import { ReportModule } from './report.modul'
 
 export class ReportController {
-  private repository = new ReportRepository()
+  private logic = new ReportModule()
 
   async create(c: Context) {
     const user = c.get('user')
     const body = await c.req.parseBody()
     
-    const validated = createReportSchema.safeParse(body)
-    if (!validated.success) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid data', details: validated.error.flatten() } }, 422)
+    const result = await this.logic.processCreate(user.id, body)
+    
+    if (result.error) {
+      return c.json({ error: result.error }, result.status as any)
     }
 
-    const photo = body['photo'] as File
-    if (!photo) {
-      return c.json({ error: { code: 'MISSING_PHOTO', message: 'Photo is required' } }, 422)
-    }
-
-    const key = `reports/${user.id}-${randomUUIDv7()}.jpg`
-    const photoUrl = await uploadToR2(photo, key)
-
-    const data = await this.repository.create({
-      id: randomUUIDv7(),
-      userId: user.id,
-      category: validated.data.category,
-      description: validated.data.description,
-      photoUrl,
-      latitude: validated.data.latitude,
-      longitude: validated.data.longitude,
-      status: 'pending',
-    })
-
-    return c.json({ data }, 201)
+    return c.json({ data: result.data }, result.status as any)
   }
 
   async getMyReports(c: Context) {
     const user = c.get('user')
     const query = c.req.query()
-    const validated = reportQuerySchema.safeParse(query)
     
-    if (!validated.success) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid query parameters' } }, 422)
+    const result = await this.logic.fetchMyReports(user.id, query)
+    
+    if (result.error) {
+      return c.json({ error: result.error }, result.status as any)
     }
 
-    const result = await this.repository.findAll({
-      ...validated.data,
-      userId: user.id
-    })
-
-    return c.json({ data: result })
+    return c.json({ data: result.data })
   }
 
   async getAllReports(c: Context) {
     const query = c.req.query()
-    const validated = reportQuerySchema.safeParse(query)
     
-    if (!validated.success) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid query parameters' } }, 422)
+    const result = await this.logic.fetchAllReports(query)
+    
+    if (result.error) {
+      return c.json({ error: result.error }, result.status as any)
     }
 
-    const result = await this.repository.findAll(validated.data)
-
-    return c.json({ data: result })
+    return c.json({ data: result.data })
   }
 
   async getDetail(c: Context) {
     const id = c.req.param('id')
-    const data = await this.repository.findById(id)
+    const result = await this.logic.fetchDetail(id)
     
-    if (!data) {
-      return c.json({ error: { code: 'REPORT_NOT_FOUND', message: 'Report not found' } }, 404)
+    if (result.error) {
+      return c.json({ error: result.error }, result.status as any)
     }
 
-    return c.json({ data })
+    return c.json({ data: result.data })
   }
 
   async validate(c: Context) {
@@ -84,28 +58,12 @@ export class ReportController {
     const user = c.get('user')
     const body = await c.req.json()
     
-    const validated = validateReportSchema.safeParse(body)
-    if (!validated.success) {
-      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid data', details: validated.error.flatten() } }, 422)
+    const result = await this.logic.processValidate(id, user.id, body)
+    
+    if (result.error) {
+      return c.json({ error: result.error }, result.status as any)
     }
 
-    const report = await this.repository.findById(id)
-    if (!report) {
-      return c.json({ error: { code: 'REPORT_NOT_FOUND', message: 'Report not found' } }, 404)
-    }
-
-    if (report.status !== 'pending') {
-      return c.json({ error: { code: 'ALREADY_VALIDATED', message: 'Report has already been validated' } }, 409)
-    }
-
-    await this.repository.validate(id, {
-      id: randomUUIDv7(),
-      reportId: id,
-      validatedBy: user.id,
-      status: validated.data.status,
-      notes: validated.data.notes,
-    })
-
-    return c.json({ data: { id, status: validated.data.status } })
+    return c.json({ data: result.data })
   }
 }

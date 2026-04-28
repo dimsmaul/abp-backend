@@ -1,11 +1,31 @@
-import { Hono } from 'hono'
-import { DashboardController } from './dashboard.controller'
-import { roleGuard } from '../../lib/rbac'
+import { DashboardRepository } from './dashboard.repository'
 
-const dashboard = new Hono()
-const controller = new DashboardController()
+export class DashboardModule {
+  private repository = new DashboardRepository()
 
-dashboard.get('/web/dashboard/summary', roleGuard(['manager', 'admin']), (c) => controller.getSummary(c))
-dashboard.get('/web/dashboard/map-points', roleGuard(['manager', 'admin']), (c) => controller.getMapPoints(c))
+  async fetchSummary() {
+    const stats = await this.repository.getStats()
+    
+    return {
+      data: {
+        todayPresent: stats.todayPresent,
+        todayAbsent: stats.totalEmployees - stats.todayPresent,
+        pendingReports: stats.pendingReports,
+        totalEmployees: stats.totalEmployees,
+      },
+      status: 200
+    }
+  }
 
-export default dashboard
+  async fetchMapPoints(dateStr?: string) {
+    const date = dateStr ? new Date(dateStr) : new Date()
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    const points = await this.repository.findPointsByDate(startOfDay, endOfDay)
+    
+    return { data: { points }, status: 200 }
+  }
+}
