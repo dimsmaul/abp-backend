@@ -33,48 +33,48 @@ export class AttendanceRepository {
     department?: string
     type?: 'check_in' | 'check_out'
   }) {
-    let query = db
+    let base = db
       .selectFrom('attendance')
       .innerJoin('user', 'user.id', 'attendance.userId')
-      .select([
-        'attendance.id',
-        'attendance.type',
-        'attendance.photoUrl',
-        'attendance.latitude',
-        'attendance.longitude',
-        'attendance.locationName',
-        'attendance.isWithinZone',
-        'attendance.serverTime',
-        'user.id as userId',
-        'user.name as userName',
-        'user.department as userDepartment',
-      ])
 
     if (filters.userId) {
-      query = query.where('attendance.userId', '=', filters.userId)
+      base = base.where('attendance.userId', '=', filters.userId)
     }
-
     if (filters.from) {
-      query = query.where('attendance.serverTime', '>=', new Date(filters.from))
+      base = base.where('attendance.serverTime', '>=', new Date(filters.from))
     }
-
     if (filters.to) {
-      query = query.where('attendance.serverTime', '<=', new Date(filters.to))
+      base = base.where('attendance.serverTime', '<=', new Date(filters.to))
     }
-
     if (filters.department) {
-      query = query.where('user.department', '=', filters.department)
+      base = base.where('user.department', '=', filters.department)
     }
-
     if (filters.type) {
-      query = query.where('attendance.type', '=', filters.type)
+      base = base.where('attendance.type', '=', filters.type)
     }
 
     const offset = (filters.page - 1) * filters.limit
 
     const [items, countResult] = await Promise.all([
-      query.limit(filters.limit).offset(offset).orderBy('attendance.serverTime', 'desc').execute(),
-      query.select(sql`count(*)`.as('count')).executeTakeFirst(),
+      base
+        .select([
+          'attendance.id',
+          'attendance.type',
+          'attendance.photoUrl',
+          'attendance.latitude',
+          'attendance.longitude',
+          'attendance.locationName',
+          'attendance.isWithinZone',
+          'attendance.serverTime',
+          'user.id as userId',
+          'user.name as userName',
+          'user.department as userDepartment',
+        ])
+        .limit(filters.limit)
+        .offset(offset)
+        .orderBy('attendance.serverTime', 'desc')
+        .execute(),
+      base.select(sql<string>`count(*)`.as('count')).executeTakeFirst(),
     ])
 
     const total = Number(countResult?.count ?? 0)
@@ -83,7 +83,7 @@ export class AttendanceRepository {
       items,
       page: filters.page,
       limit: filters.limit,
-      total: Number(countResult?.count ?? 0),
+      total,
     }
   }
 

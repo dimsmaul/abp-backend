@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth"
+import { bearer } from "better-auth/plugins"
 import { kyselyAdapter } from "@better-auth/kysely-adapter"
 import { db } from "./database"
 
@@ -9,6 +10,7 @@ export const auth = betterAuth({
         type: "postgres", // Specify the database provider
     }),
     trustedOrigins: ["http://localhost:5173", "https://fieldtrack.vercel.app", 'https://stg-fieldtrack.vercel.app'],
+    plugins: [bearer({ requireSignature: false })],
     advanced: {
         defaultCookieAttributes: {
             sameSite: "none",
