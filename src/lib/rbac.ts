@@ -19,7 +19,6 @@ export const roleGuard = (roles: Role[]) => {
       return c.json({ error: { code: 'FORBIDDEN', message: 'You do not have permission to access this resource' } }, 403)
     }
 
-    // Set user and session in context for later use
     c.set('user', session.user)
     c.set('session', session.session)
 
