@@ -44,45 +44,45 @@ export class ReportRepository {
     from?: string
     to?: string
   }) {
-    let query = db
+    let base = db
       .selectFrom('fieldReport')
       .innerJoin('user', 'user.id', 'fieldReport.userId')
-      .select([
-        'fieldReport.id',
-        'fieldReport.category',
-        'fieldReport.description',
-        'fieldReport.photoUrl',
-        'fieldReport.status',
-        'fieldReport.createdAt',
-        'user.name as userName',
-        'user.department as userDepartment',
-      ])
 
     if (filters.status) {
-      query = query.where('fieldReport.status', '=', filters.status as any)
+      base = base.where('fieldReport.status', '=', filters.status as any)
     }
-
     if (filters.category) {
-      query = query.where('fieldReport.category', '=', filters.category as any)
+      base = base.where('fieldReport.category', '=', filters.category as any)
     }
-
     if (filters.userId) {
-      query = query.where('fieldReport.userId', '=', filters.userId)
+      base = base.where('fieldReport.userId', '=', filters.userId)
     }
-
     if (filters.from) {
-      query = query.where('fieldReport.createdAt', '>=', new Date(filters.from))
+      base = base.where('fieldReport.createdAt', '>=', new Date(filters.from))
     }
-
     if (filters.to) {
-      query = query.where('fieldReport.createdAt', '<=', new Date(filters.to))
+      base = base.where('fieldReport.createdAt', '<=', new Date(filters.to))
     }
 
     const offset = (filters.page - 1) * filters.limit
 
     const [items, countResult] = await Promise.all([
-      query.limit(filters.limit).offset(offset).orderBy('fieldReport.createdAt', 'desc').execute(),
-      query.select(sql`count(*)`.as('count')).executeTakeFirst(),
+      base
+        .select([
+          'fieldReport.id',
+          'fieldReport.category',
+          'fieldReport.description',
+          'fieldReport.photoUrl',
+          'fieldReport.status',
+          'fieldReport.createdAt',
+          'user.name as userName',
+          'user.department as userDepartment',
+        ])
+        .limit(filters.limit)
+        .offset(offset)
+        .orderBy('fieldReport.createdAt', 'desc')
+        .execute(),
+      base.select(sql<string>`count(*)`.as('count')).executeTakeFirst(),
     ])
 
     const total = Number(countResult?.count ?? 0)
@@ -91,7 +91,7 @@ export class ReportRepository {
       items,
       page: filters.page,
       limit: filters.limit,
-      total: Number(countResult?.count ?? 0),
+      total,
     }
   }
 
