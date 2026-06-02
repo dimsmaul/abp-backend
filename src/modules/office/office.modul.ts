@@ -12,8 +12,10 @@ function mapInput(input: any) {
 export class OfficeModule {
   private repository = new OfficeRepository()
 
-  async fetchAll() {
-    const data = await this.repository.findAll()
+  async fetchAll(query: { page?: string; limit?: string }) {
+    const page = Math.max(1, Number(query.page) || 1)
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20))
+    const data = await this.repository.findAll({ page, limit })
     return { data, status: 200 }
   }
 

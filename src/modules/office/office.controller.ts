@@ -1,13 +1,15 @@
 import { Context } from 'hono'
 import { OfficeModule } from './office.modul'
-import { successResponse } from '../../lib/response'
+import { paginatedResponse, successResponse } from '../../lib/response'
 
 export class OfficeController {
   private module = new OfficeModule()
 
   async findAll(c: Context) {
-    const result = await this.module.fetchAll()
-    return c.json(successResponse(result.data, 'Offices fetched'))
+    const query = c.req.query()
+    const result = await this.module.fetchAll(query)
+    const { items, page, limit, total } = result.data
+    return c.json(paginatedResponse(items, { page, limit, total }, 'Offices fetched'))
   }
 
   async findOne(c: Context) {
