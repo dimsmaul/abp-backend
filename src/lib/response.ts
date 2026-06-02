@@ -21,8 +21,8 @@ export function paginatedResponse<T>(
       meta: {
         page: meta.page,
         limit: meta.limit,
-        total_record: meta.total,
-        total_page: Math.ceil(meta.total / meta.limit),
+        total: meta.total,
+        totalPages: Math.ceil(meta.total / Math.max(meta.limit, 1)),
       },
       items,
     },
