@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
 import { AttendanceController } from './attendance.controller'
-import { roleGuard } from '../../lib/rbac'
+import { authGuard, roleGuard } from '../../lib/rbac'
 import { checkInSchema, checkOutSchema } from './attendance.schema'
 import { z } from '../../lib/openapi'
 
@@ -14,10 +14,10 @@ const controller = new AttendanceController()
 // path that won't conflict.
 
 // ── Real route handlers ─────────────────────────────────────────────
-// Mobile = all roles (admin/manager are also employees who absen)
-attendance.post('/mobile/attendances/check-in', roleGuard(['employee', 'manager', 'admin']), (c) => controller.checkIn(c))
-attendance.post('/mobile/attendances/check-out', roleGuard(['employee', 'manager', 'admin']), (c) => controller.checkOut(c))
-attendance.get('/mobile/attendances', roleGuard(['employee', 'manager', 'admin']), (c) => controller.getMyHistory(c))
+// Mobile = any authenticated user (admin/manager absen via mobile juga).
+attendance.post('/mobile/attendances/check-in', authGuard(), (c) => controller.checkIn(c))
+attendance.post('/mobile/attendances/check-out', authGuard(), (c) => controller.checkOut(c))
+attendance.get('/mobile/attendances', authGuard(), (c) => controller.getMyHistory(c))
 attendance.get('/web/attendances', roleGuard(['manager', 'admin']), (c) => controller.getAllHistory(c))
 attendance.get('/web/attendances/recap', roleGuard(['manager', 'admin']), (c) => controller.getRecap(c))
 attendance.get('/web/attendances/map-points', roleGuard(['manager', 'admin']), (c) => controller.getMapPoints(c))

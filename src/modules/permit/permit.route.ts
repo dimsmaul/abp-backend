@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
 import { PermitController } from './permit.controller'
-import { roleGuard } from '../../lib/rbac'
+import { authGuard, roleGuard } from '../../lib/rbac'
 import { createPermitSchema, validatePermitSchema } from './permit.schema'
 import { z } from '../../lib/openapi'
 
@@ -109,8 +109,8 @@ const validatePermitRoute = createRoute({
   },
 })
 
-permit.openapi(findMyPermitsRoute, roleGuard(['employee', 'manager', 'admin']), (c) => controller.findMyPermits(c))
-permit.openapi(createPermitRoute, roleGuard(['employee', 'manager', 'admin']), (c) => controller.create(c))
+permit.openapi(findMyPermitsRoute, authGuard(), (c) => controller.findMyPermits(c))
+permit.openapi(createPermitRoute, authGuard(), (c) => controller.create(c))
 permit.openapi(findAllRoute, roleGuard(['manager', 'admin']), (c) => controller.findAll(c))
 permit.openapi(validatePermitRoute, roleGuard(['manager', 'admin']), (c) => controller.validate(c))
 
