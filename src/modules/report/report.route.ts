@@ -5,10 +5,10 @@ import { roleGuard } from '../../lib/rbac'
 const report = new OpenAPIHono()
 const controller = new ReportController()
 
-// Mobile (employee)
-report.post('/mobile/reports', roleGuard(['employee']), (c) => controller.create(c))
-report.get('/mobile/reports', roleGuard(['employee']), (c) => controller.findMyReports(c))
-report.get('/mobile/reports/:id', roleGuard(['employee']), (c) => controller.getMyDetail(c))
+// Mobile = all roles (admin/manager bisa lapor + absen via mobile juga)
+report.post('/mobile/reports', roleGuard(['employee', 'manager', 'admin']), (c) => controller.create(c))
+report.get('/mobile/reports', roleGuard(['employee', 'manager', 'admin']), (c) => controller.findMyReports(c))
+report.get('/mobile/reports/:id', roleGuard(['employee', 'manager', 'admin']), (c) => controller.getMyDetail(c))
 
 // Web (manager, admin)
 report.get('/web/reports', roleGuard(['manager', 'admin']), (c) => controller.findAll(c))
