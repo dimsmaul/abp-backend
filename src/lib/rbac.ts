@@ -3,7 +3,15 @@ import { auth } from './auth'
 
 export type Role = 'employee' | 'admin' | 'manager'
 
-export const roleGuard = (roles: Role[]) => {
+/**
+ * Gate a route by session + (optional) role allowlist.
+ *
+ * - `roleGuard()` or `roleGuard('any')` → just requires a valid session
+ *   (used for endpoints any authenticated user can hit, e.g. mobile).
+ * - `roleGuard(['admin'])` / `roleGuard(['manager', 'admin'])` → restrict
+ *   to specific roles (web admin scope).
+ */
+export const roleGuard = (roles?: Role[] | 'any') => {
   return async (c: Context, next: Next) => {
     const session = await auth.api.getSession({
       headers: c.req.raw.headers,
@@ -15,7 +23,7 @@ export const roleGuard = (roles: Role[]) => {
 
     const userRole = session.user.role as Role
 
-    if (!roles.includes(userRole)) {
+    if (Array.isArray(roles) && !roles.includes(userRole)) {
       return c.json({ error: { code: 'FORBIDDEN', message: 'You do not have permission to access this resource' } }, 403)
     }
 
@@ -25,3 +33,6 @@ export const roleGuard = (roles: Role[]) => {
     await next()
   }
 }
+
+/** Sugar: any authenticated user (no role filter). */
+export const authGuard = () => roleGuard()
