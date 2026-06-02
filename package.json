@@ -6,7 +6,7 @@
     "db:make": "bun scripts/make-migration.ts",
     "db:migrate": "bun scripts/migrate.ts",
     "build": "bun build ./src/index.ts --outdir ./dist --target bun",
-    "vercel-build": "esbuild src/vercel.ts --bundle --platform=node --target=node18 --format=esm --outfile=api/index.mjs --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\""
+    "vercel-build": "esbuild src/vercel.ts --bundle --platform=node --target=node18 --format=esm --external:sharp --external:@img/* --outfile=api/index.mjs --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1038.0",
