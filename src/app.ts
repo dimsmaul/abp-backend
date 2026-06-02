@@ -44,9 +44,29 @@ export function createApp() {
   })
 
   app.use('*', logger())
+
+  const STATIC_ORIGINS = new Set([
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://fieldtrack.vercel.app',
+    'https://stg-fieldtrack.vercel.app',
+  ])
+
+  // Allow Vercel preview deploys of the FE: https://fieldtrack-<hash>.vercel.app
+  const PREVIEW_REGEX = /^https:\/\/fieldtrack(-[a-z0-9-]+)?\.vercel\.app$/
+
   app.use('*', cors({
-    origin: ['http://localhost:5173', 'https://fieldtrack.vercel.app', 'https://stg-fieldtrack.vercel.app'],
+    origin: (origin) => {
+      if (!origin) return null
+      if (STATIC_ORIGINS.has(origin)) return origin
+      if (PREVIEW_REGEX.test(origin)) return origin
+      return null
+    },
     credentials: true,
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    exposeHeaders: ['set-auth-token'],
+    maxAge: 86400,
   }))
 
   // Auth handler
