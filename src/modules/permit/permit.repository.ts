@@ -50,12 +50,28 @@ export class PermitRepository {
 
     const offset = (filters.page - 1) * filters.limit
 
-    const [items, countResult] = await Promise.all([
+    const [rows, countResult] = await Promise.all([
       query.limit(filters.limit).offset(offset).orderBy('permit.createdAt', 'desc').execute(),
       query.select(sql`count(*)`.as('count')).executeTakeFirst(),
     ])
 
-    const total = Number(countResult?.count ?? 0)
+    const items = rows.map((r: any) => ({
+      id: r.id,
+      userId: r.userId,
+      type: r.type,
+      description: r.description,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      attachmentUrl: r.attachmentUrl,
+      status: r.status,
+      notes: r.notes,
+      createdAt: r.createdAt,
+      user: {
+        id: r.userId,
+        name: r.userName,
+        department: r.userDepartment,
+      },
+    }))
 
     return {
       items,
