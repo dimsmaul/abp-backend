@@ -1,6 +1,7 @@
 import { ReportRepository } from './report.repository'
 import { createReportSchema, validateReportSchema, reportQuerySchema } from './report.schema'
 import { uploadToR2 } from '../../lib/s3'
+import { watermarkPhoto } from '../../lib/watermark'
 
 export class ReportModule {
   private repository = new ReportRepository()
@@ -16,8 +17,15 @@ export class ReportModule {
       return { error: { code: 'MISSING_PHOTO', message: 'Photo is required' }, status: 422 }
     }
 
+    const arrayBuf = await photo.arrayBuffer()
+    const watermarked = await watermarkPhoto(Buffer.from(arrayBuf), {
+      latitude: validated.data.latitude,
+      longitude: validated.data.longitude,
+      serverTime: new Date(),
+    })
+
     const key = `reports/${userId}-${crypto.randomUUID()}.jpg`
-    const photoUrl = await uploadToR2(photo, key)
+    const photoUrl = await uploadToR2(watermarked, key, 'image/jpeg')
 
     const data = await this.repository.create({
       id: crypto.randomUUID(),
