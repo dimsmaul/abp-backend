@@ -2,8 +2,54 @@ import { AttendanceRepository } from './attendance.repository'
 import { checkInSchema, checkOutSchema, attendanceQuerySchema, recapQuerySchema } from './attendance.schema'
 import { uploadToR2 } from '../../lib/s3'
 import { OfficeRepository } from '../office/office.repository'
-import { calculateDistance } from '../../lib/geo'
+import { isPointInRadius, isPointInPolygon } from '../../lib/geofence'
+import { watermarkPhoto } from '../../lib/watermark'
 import { UserRepository } from '../user/user.repository'
+
+async function evaluateZone(lat: number, lng: number) {
+  const officeRepo = new OfficeRepository()
+  const offices = await officeRepo.findAll()
+
+  if (offices.length === 0) {
+    return { isWithinZone: true, nearestOfficeName: '' }
+  }
+
+  for (const office of offices) {
+    const zoneType = (office as any).zone_type ?? 'radius'
+    if (zoneType === 'polygon') {
+      const raw = (office as any).polygon
+      const poly = typeof raw === 'string' ? JSON.parse(raw) : raw
+      if (Array.isArray(poly) && isPointInPolygon(lat, lng, poly)) {
+        return { isWithinZone: true, nearestOfficeName: office.name }
+      }
+    } else {
+      if (
+        office.latitude != null &&
+        office.longitude != null &&
+        office.radius != null &&
+        isPointInRadius(
+          lat,
+          lng,
+          Number(office.latitude),
+          Number(office.longitude),
+          Number(office.radius),
+        )
+      ) {
+        return { isWithinZone: true, nearestOfficeName: office.name }
+      }
+    }
+  }
+  return { isWithinZone: false, nearestOfficeName: '' }
+}
+
+async function fileToWatermarkedBuffer(
+  photo: File,
+  meta: { latitude: number; longitude: number; locationName?: string; serverTime: Date },
+): Promise<Buffer> {
+  const arrayBuf = await photo.arrayBuffer()
+  const buf = Buffer.from(arrayBuf)
+  return await watermarkPhoto(buf, meta)
+}
 
 export class AttendanceModule {
   private repository = new AttendanceRepository()
@@ -27,46 +73,34 @@ export class AttendanceModule {
     }
 
     // --- Geofencing Validation ---
-    const officeRepo = new OfficeRepository()
-    const offices = await officeRepo.findAll()
-    
-    let isWithinZone = false
-    let nearestOfficeName = ""
-
-    if (offices.length === 0) {
-      // If no offices defined, default to true or some other policy
-      isWithinZone = true 
-    } else {
-      for (const office of offices) {
-        const distance = calculateDistance(
-          validated.data.latitude,
-          validated.data.longitude,
-          Number(office.latitude),
-          Number(office.longitude)
-        )
-        if (distance <= office.radius) {
-          isWithinZone = true
-          nearestOfficeName = office.name
-          break
-        }
-      }
-    }
+    const { isWithinZone, nearestOfficeName } = await evaluateZone(
+      validated.data.latitude,
+      validated.data.longitude,
+    )
 
     // --- Face Recognition Scaffolding ---
     const userRepo = new UserRepository()
     const user = await userRepo.findById(userId)
-    
+
     if (user?.faceRecognitionEnabled) {
       // TODO: Implement actual face recognition logic here
       // For now, we assume it's valid if the photo is present
       console.log(`[FaceRecognition] Checking face for user ${userId}`)
     }
 
-    const key = `attendance/check-in/${userId}-${crypto.randomUUID()}.jpg`
-    const photoUrl = await uploadToR2(photo, key)
-    
+    const serverTime = new Date()
     const locationName = nearestOfficeName || "Field (Outside Zone)"
-    
+
+    const watermarked = await fileToWatermarkedBuffer(photo, {
+      latitude: validated.data.latitude,
+      longitude: validated.data.longitude,
+      locationName,
+      serverTime,
+    })
+
+    const key = `attendance/check-in/${userId}-${crypto.randomUUID()}.jpg`
+    const photoUrl = await uploadToR2(watermarked, key, 'image/jpeg')
+
     const data = await this.repository.create({
       id: crypto.randomUUID(),
       userId: userId,
@@ -75,8 +109,8 @@ export class AttendanceModule {
       latitude: validated.data.latitude,
       longitude: validated.data.longitude,
       locationName,
-      isWithinZone, 
-      serverTime: new Date(),
+      isWithinZone,
+      serverTime,
     })
 
     return { data, status: 201 }
@@ -106,34 +140,23 @@ export class AttendanceModule {
     }
 
     // --- Geofencing Validation (Same as Check-In) ---
-    const officeRepo = new OfficeRepository()
-    const offices = await officeRepo.findAll()
-    
-    let isWithinZone = false
-    let nearestOfficeName = ""
+    const { isWithinZone, nearestOfficeName } = await evaluateZone(
+      validated.data.latitude,
+      validated.data.longitude,
+    )
 
-    if (offices.length === 0) {
-      isWithinZone = true 
-    } else {
-      for (const office of offices) {
-        const distance = calculateDistance(
-          validated.data.latitude,
-          validated.data.longitude,
-          Number(office.latitude),
-          Number(office.longitude)
-        )
-        if (distance <= office.radius) {
-          isWithinZone = true
-          nearestOfficeName = office.name
-          break
-        }
-      }
-    }
+    const serverTime = new Date()
+    const locationName = nearestOfficeName || "Field (Outside Zone)"
+
+    const watermarked = await fileToWatermarkedBuffer(photo, {
+      latitude: validated.data.latitude,
+      longitude: validated.data.longitude,
+      locationName,
+      serverTime,
+    })
 
     const key = `attendance/check-out/${userId}-${crypto.randomUUID()}.jpg`
-    const photoUrl = await uploadToR2(photo, key)
-
-    const locationName = nearestOfficeName || "Field (Outside Zone)"
+    const photoUrl = await uploadToR2(watermarked, key, 'image/jpeg')
 
     const data = await this.repository.create({
       id: crypto.randomUUID(),
@@ -144,7 +167,7 @@ export class AttendanceModule {
       longitude: validated.data.longitude,
       locationName,
       isWithinZone,
-      serverTime: new Date(),
+      serverTime,
     })
 
     return { data, status: 201 }
