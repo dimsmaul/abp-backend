@@ -1,0 +1,126 @@
+import { MeRepository } from './me.repository'
+import { updateMeSchema } from './me.schema'
+import { uploadToR2 } from '../../lib/s3'
+
+const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png'])
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024 // 5MB
+
+// Sniff first bytes to verify the file is actually JPEG/PNG.
+function sniffImageMime(buf: Buffer): 'image/jpeg' | 'image/png' | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg'
+  }
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
+  ) {
+    return 'image/png'
+  }
+  return null
+}
+
+export class MeModule {
+  private repository = new MeRepository()
+
+  async processUpdate(userId: string, body: any) {
+    const validated = updateMeSchema.safeParse(body)
+    if (!validated.success) {
+      return {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid data',
+          details: validated.error.flatten(),
+        },
+        status: 422,
+      }
+    }
+
+    // Reject empty payload — nothing to update.
+    if (
+      validated.data.name === undefined &&
+      validated.data.department === undefined
+    ) {
+      return {
+        error: { code: 'EMPTY_PAYLOAD', message: 'No fields to update' },
+        status: 422,
+      }
+    }
+
+    const data = await this.repository.updateProfile(userId, validated.data)
+    if (!data) {
+      return { error: { code: 'USER_NOT_FOUND', message: 'User not found' }, status: 404 }
+    }
+
+    return { data, status: 200 }
+  }
+
+  async processAvatarUpload(userId: string, body: any) {
+    const photo = body['photo'] as File | undefined
+    if (!photo || typeof (photo as any).arrayBuffer !== 'function') {
+      return {
+        error: { code: 'MISSING_PHOTO', message: 'photo field is required' },
+        status: 422,
+      }
+    }
+
+    // Declared content-type guard
+    const declaredType = (photo as any).type as string | undefined
+    if (declaredType && !ALLOWED_IMAGE_MIME.has(declaredType)) {
+      return {
+        error: {
+          code: 'INVALID_MIME_TYPE',
+          message: 'Only image/jpeg and image/png are allowed',
+        },
+        status: 422,
+      }
+    }
+
+    // Size guard
+    const size = (photo as any).size as number | undefined
+    if (typeof size === 'number' && size > MAX_AVATAR_BYTES) {
+      return {
+        error: { code: 'FILE_TOO_LARGE', message: 'Max file size is 5MB' },
+        status: 422,
+      }
+    }
+
+    const arrayBuf = await photo.arrayBuffer()
+    const buf = Buffer.from(arrayBuf)
+
+    if (buf.byteLength > MAX_AVATAR_BYTES) {
+      return {
+        error: { code: 'FILE_TOO_LARGE', message: 'Max file size is 5MB' },
+        status: 422,
+      }
+    }
+
+    const sniffed = sniffImageMime(buf)
+    if (!sniffed) {
+      return {
+        error: {
+          code: 'INVALID_IMAGE',
+          message: 'File is not a valid JPEG or PNG image',
+        },
+        status: 422,
+      }
+    }
+
+    const ext = sniffed === 'image/png' ? 'png' : 'jpg'
+    const key = `avatars/${userId}-${crypto.randomUUID()}.${ext}`
+    const imageUrl = await uploadToR2(buf, key, sniffed)
+
+    const updated = await this.repository.updateImage(userId, imageUrl)
+    if (!updated) {
+      return { error: { code: 'USER_NOT_FOUND', message: 'User not found' }, status: 404 }
+    }
+
+    return { data: { imageUrl }, status: 200 }
+  }
+}

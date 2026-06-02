@@ -9,6 +9,7 @@ import report from './modules/report/report.route'
 import dashboard from './modules/dashboard/dashboard.route'
 import office from './modules/office/office.route'
 import permit from './modules/permit/permit.route'
+import me from './modules/me/me.route'
 
 export function createApp() {
   const app = new OpenAPIHono()
@@ -77,6 +78,7 @@ export function createApp() {
   app.route('/api', dashboard)
   app.route('/api', office)
   app.route('/api', permit)
+  app.route('/api', me)
 
   app.get('/', (c) => {
     return c.json({ message: 'FieldTrack API is running!' })
