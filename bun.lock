@@ -24,6 +24,9 @@
         "@types/pg": "^8.20.0",
         "esbuild": "^0.28.0",
       },
+      "optionalDependencies": {
+        "@img/sharp-linux-x64": "0.34.5",
+      },
     },
   },
   "packages": {

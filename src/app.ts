@@ -45,22 +45,20 @@ export function createApp() {
 
   app.use('*', logger())
 
-  const STATIC_ORIGINS = new Set([
+  // Strict static allowlist. Vercel preview URLs are NOT permitted to avoid
+  // attacker-deployed `fieldtrack-<anything>.vercel.app` slipping past a loose
+  // prefix regex. Add explicit preview URLs here when needed.
+  const ALLOWED_ORIGINS = new Set([
     'http://localhost:5173',
     'http://localhost:3000',
     'https://fieldtrack.vercel.app',
     'https://stg-fieldtrack.vercel.app',
   ])
 
-  // Allow Vercel preview deploys of the FE: https://fieldtrack-<hash>.vercel.app
-  const PREVIEW_REGEX = /^https:\/\/fieldtrack(-[a-z0-9-]+)?\.vercel\.app$/
-
   app.use('*', cors({
     origin: (origin) => {
       if (!origin) return null
-      if (STATIC_ORIGINS.has(origin)) return origin
-      if (PREVIEW_REGEX.test(origin)) return origin
-      return null
+      return ALLOWED_ORIGINS.has(origin) ? origin : null
     },
     credentials: true,
     allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
