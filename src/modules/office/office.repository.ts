@@ -1,5 +1,6 @@
 import { db } from '../../lib/database'
 import { OfficeTable } from '../../lib/types'
+import { sql } from 'kysely'
 
 export class OfficeRepository {
   async create(data: Omit<OfficeTable, 'id' | 'createdAt' | 'updatedAt'>) {
@@ -14,12 +15,24 @@ export class OfficeRepository {
       .executeTakeFirstOrThrow()
   }
 
-  async findAll() {
-    return await db
-      .selectFrom('office')
-      .selectAll()
-      .orderBy('name', 'asc')
-      .execute()
+  async findAll(filters: { page: number; limit: number }) {
+    const offset = (filters.page - 1) * filters.limit
+    const [items, countResult] = await Promise.all([
+      db
+        .selectFrom('office')
+        .selectAll()
+        .orderBy('name', 'asc')
+        .limit(filters.limit)
+        .offset(offset)
+        .execute(),
+      db.selectFrom('office').select(sql`count(*)`.as('count')).executeTakeFirst(),
+    ])
+    return {
+      items,
+      page: filters.page,
+      limit: filters.limit,
+      total: Number(countResult?.count ?? 0),
+    }
   }
 
   async findById(id: string) {

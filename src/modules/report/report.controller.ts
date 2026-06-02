@@ -56,6 +56,22 @@ export class ReportController {
     return c.json(successResponse(result.data, 'Report fetched'))
   }
 
+  async getMyDetail(c: Context) {
+    const id = c.req.param('id')!
+    const user = c.get('user')
+    const result = await this.module.fetchDetail(id)
+
+    if (result.error) {
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
+    }
+
+    if ((result.data as any).userId !== user.id) {
+      return c.json({ message: 'Forbidden', error: { code: 'FORBIDDEN', message: 'Not your report' } }, 403)
+    }
+
+    return c.json(successResponse(result.data, 'Report fetched'))
+  }
+
   async validate(c: Context) {
     const id = c.req.param('id')!
     const user = c.get('user')

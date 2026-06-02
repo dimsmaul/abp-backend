@@ -5,7 +5,20 @@ export const createPermitSchema = z.object({
   description: z.string().min(1),
   startDate: z.string().transform((val) => new Date(val)),
   endDate: z.string().transform((val) => new Date(val)),
-  attachmentUrl: z.url().optional(),
+  attachmentUrl: z
+    .url()
+    .refine(
+      (v) => {
+        try {
+          const p = new URL(v).protocol
+          return p === 'http:' || p === 'https:'
+        } catch {
+          return false
+        }
+      },
+      { message: 'attachmentUrl must use http or https scheme' },
+    )
+    .optional(),
 })
 
 export const validatePermitSchema = z.object({

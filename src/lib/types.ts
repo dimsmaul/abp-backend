@@ -99,10 +99,12 @@ export interface ReportValidationTable {
 export interface OfficeTable {
   id: string
   name: string
-  latitude: number
-  longitude: number
-  radius: number
-  address?: string
+  latitude?: number | null
+  longitude?: number | null
+  radius?: number | null
+  address?: string | null
+  zone_type: 'radius' | 'polygon'
+  polygon?: number[][] | null
   createdAt: Generated<Date>
   updatedAt: Generated<Date>
 }
