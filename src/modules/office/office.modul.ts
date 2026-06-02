@@ -1,6 +1,14 @@
 import { OfficeRepository } from './office.repository'
 import { createOfficeSchema, updateOfficeSchema } from './office.schema'
 
+function mapInput(input: any) {
+  const { zoneType, polygon, ...rest } = input
+  const mapped: any = { ...rest }
+  if (zoneType !== undefined) mapped.zone_type = zoneType
+  if (polygon !== undefined) mapped.polygon = polygon === null ? null : JSON.stringify(polygon)
+  return mapped
+}
+
 export class OfficeModule {
   private repository = new OfficeRepository()
 
@@ -21,7 +29,7 @@ export class OfficeModule {
       return { error: { code: 'VALIDATION_ERROR', message: 'Invalid data', details: validated.error.flatten() }, status: 422 }
     }
 
-    const data = await this.repository.create(validated.data)
+    const data = await this.repository.create(mapInput(validated.data))
     return { data, status: 201 }
   }
 
@@ -31,9 +39,9 @@ export class OfficeModule {
       return { error: { code: 'VALIDATION_ERROR', message: 'Invalid data' }, status: 422 }
     }
 
-    const data = await this.repository.update(id, validated.data)
+    const data = await this.repository.update(id, mapInput(validated.data))
     if (!data) return { error: { code: 'OFFICE_NOT_FOUND', message: 'Office not found' }, status: 404 }
-    
+
     return { data, status: 200 }
   }
 
