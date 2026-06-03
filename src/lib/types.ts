@@ -11,6 +11,7 @@ export interface Database {
   office: OfficeTable
   permit: PermitTable
   leave_balance: LeaveBalanceTable
+  announcement: AnnouncementTable
 }
 
 export interface UserTable {
@@ -134,5 +135,18 @@ export interface LeaveBalanceTable {
   notes?: string | null
   created_at: Generated<Date>
   updated_at: Generated<Date>
+}
+
+export interface AnnouncementTable {
+  id: Generated<string>
+  title: string
+  body: string
+  priority: 'low' | 'normal' | 'high'
+  isPinned: boolean
+  publishedBy: string
+  publishedAt: Generated<Date>
+  expiresAt?: Date | null
+  createdAt: Generated<Date>
+  updatedAt: Generated<Date>
 }
 
