@@ -11,6 +11,7 @@ import office from './modules/office/office.route'
 import permit from './modules/permit/permit.route'
 import leaveBalance from './modules/leave_balance/leave_balance.route'
 import me from './modules/me/me.route'
+import announcement from './modules/announcement/announcement.route'
 
 export function createApp() {
   const app = new OpenAPIHono()
@@ -81,6 +82,7 @@ export function createApp() {
   app.route('/api', permit)
   app.route('/api', leaveBalance)
   app.route('/api', me)
+  app.route('/api', announcement)
 
   app.get('/', (c) => {
     return c.json({ message: 'FieldTrack API is running!' })
