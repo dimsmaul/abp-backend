@@ -1,6 +1,9 @@
 import { Context } from 'hono'
+import { GetObjectCommand } from '@aws-sdk/client-s3'
 import { MeModule } from './me.modul'
+import { r2Client, r2KeyFromPublicUrl } from '../../lib/s3'
 import { successResponse } from '../../lib/response'
+import { MeRepository } from './me.repository'
 
 export class MeController {
   private module = new MeModule()
@@ -49,6 +52,54 @@ export class MeController {
         { message: 'Failed to upload avatar', error: { code } },
         500,
       )
+    }
+  }
+
+  /**
+   * Stream the authenticated user's avatar bytes from R2 through this server.
+   * Dart's HttpClient on Android can't get past Cloudflare's WAF on the
+   * public r2.dev subdomain (TLS / JA3 fingerprint flagged as bot), so the
+   * mobile client goes through us instead and gets the raw image bytes
+   * over an already-authenticated channel.
+   */
+  async streamAvatar(c: Context) {
+    const user = c.get('user')
+    try {
+      const repo = new MeRepository()
+      const row = await repo.findById(user.id)
+      const url = row?.image as string | null | undefined
+      if (!url) {
+        return c.json({ error: { code: 'NO_AVATAR' } }, 404)
+      }
+      const key = r2KeyFromPublicUrl(url)
+      if (!key) {
+        return c.json({ error: { code: 'INVALID_AVATAR_URL' } }, 500)
+      }
+      const obj = await r2Client.send(
+        new GetObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Key: key,
+        }),
+      )
+      const body = obj.Body as any
+      if (!body) {
+        return c.json({ error: { code: 'AVATAR_NOT_FOUND' } }, 404)
+      }
+      const arrayBuf = await body.transformToByteArray()
+      return new Response(arrayBuf, {
+        status: 200,
+        headers: {
+          'Content-Type': obj.ContentType ?? 'image/png',
+          'Cache-Control': 'private, max-age=300',
+        },
+      })
+    } catch (e: any) {
+      console.error('[me/avatar/stream] failed', {
+        userId: user?.id,
+        errorName: e?.name,
+        httpStatusCode: e?.$metadata?.httpStatusCode,
+      })
+      return c.json({ error: { code: 'STREAM_FAILED' } }, 500)
     }
   }
 }
