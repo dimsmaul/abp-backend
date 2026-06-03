@@ -119,14 +119,23 @@ export class MeModule {
     const previous = await this.repository.findById(userId)
     const previousImageUrl = previous?.image as string | null | undefined
 
-    // Re-encode through sharp into a clean baseline JPEG (1024x1024 cover,
-    // q85, mozjpeg). Without this, the Dart-encoded JPEG from mobile's
-    // stripExif step occasionally trips Android's ImageDecoder with
-    // "unimplemented" even though browsers decode it fine.
+    // Re-encode through sharp into a CLEAN BASELINE JPEG (1024x1024 cover,
+    // q85, 4:2:0 chroma). Critical bits:
+    // - progressive:false → output starts with SOF0 (baseline), not SOF2.
+    //   Android's ImageDecoder on Xiaomi / MediaTek bombs with
+    //   "unimplemented" on progressive JPEGs (SOF2) even though browsers
+    //   and Skia handle them fine. mozjpeg defaults to progressive, so we
+    //   explicitly turn that off here as well.
+    // - chromaSubsampling 4:2:0 is the universally supported variant.
     const normalized = await sharp(buf)
       .rotate() // honor EXIF orientation before stripping
       .resize(1024, 1024, { fit: 'cover', position: 'centre' })
-      .jpeg({ quality: 85, mozjpeg: true })
+      .jpeg({
+        quality: 85,
+        mozjpeg: false,
+        progressive: false,
+        chromaSubsampling: '4:2:0',
+      })
       .toBuffer()
 
     const key = `avatars/${userId}-${crypto.randomUUID()}.jpg`
