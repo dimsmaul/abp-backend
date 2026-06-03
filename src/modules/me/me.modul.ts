@@ -119,27 +119,20 @@ export class MeModule {
     const previous = await this.repository.findById(userId)
     const previousImageUrl = previous?.image as string | null | undefined
 
-    // Re-encode through sharp into a CLEAN BASELINE JPEG (1024x1024 cover,
-    // q85, 4:2:0 chroma). Critical bits:
-    // - progressive:false → output starts with SOF0 (baseline), not SOF2.
-    //   Android's ImageDecoder on Xiaomi / MediaTek bombs with
-    //   "unimplemented" on progressive JPEGs (SOF2) even though browsers
-    //   and Skia handle them fine. mozjpeg defaults to progressive, so we
-    //   explicitly turn that off here as well.
-    // - chromaSubsampling 4:2:0 is the universally supported variant.
+    // Output as PNG instead of JPEG. Android's ImageDecoder on certain
+    // Xiaomi / MediaTek hardware bombs with "unimplemented" on JPEGs
+    // (both progressive AND baseline) even after sharp normalization,
+    // while browsers + Skia desktop handle the same bytes fine. PNG is
+    // universally decoded with no such quirks — slightly bigger payload
+    // is acceptable for a 1024x1024 avatar.
     const normalized = await sharp(buf)
       .rotate() // honor EXIF orientation before stripping
       .resize(1024, 1024, { fit: 'cover', position: 'centre' })
-      .jpeg({
-        quality: 85,
-        mozjpeg: false,
-        progressive: false,
-        chromaSubsampling: '4:2:0',
-      })
+      .png({ compressionLevel: 8, adaptiveFiltering: true })
       .toBuffer()
 
-    const key = `avatars/${userId}-${crypto.randomUUID()}.jpg`
-    const imageUrl = await uploadToR2(normalized, key, 'image/jpeg')
+    const key = `avatars/${userId}-${crypto.randomUUID()}.png`
+    const imageUrl = await uploadToR2(normalized, key, 'image/png')
 
     const updated = await this.repository.updateImage(userId, imageUrl)
     if (!updated) {
