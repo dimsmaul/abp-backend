@@ -10,6 +10,7 @@ export interface Database {
   reportValidation: ReportValidationTable
   office: OfficeTable
   permit: PermitTable
+  leave_balance: LeaveBalanceTable
 }
 
 export interface UserTable {
@@ -119,7 +120,19 @@ export interface PermitTable {
   attachmentUrl?: string
   status: 'pending' | 'approved' | 'rejected'
   notes?: string
+  daysUsed?: number | null
   createdAt: Generated<Date>
   updatedAt: Generated<Date>
+}
+
+export interface LeaveBalanceTable {
+  id: Generated<string>
+  user_id: string
+  year: number
+  total_days: number
+  used_days: number
+  notes?: string | null
+  created_at: Generated<Date>
+  updated_at: Generated<Date>
 }
 
