@@ -1,6 +1,6 @@
 import { MeRepository } from './me.repository'
 import { updateMeSchema } from './me.schema'
-import { uploadToR2 } from '../../lib/s3'
+import { deleteFromR2, r2KeyFromPublicUrl, uploadToR2 } from '../../lib/s3'
 
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png'])
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024 // 5MB
@@ -112,6 +112,12 @@ export class MeModule {
       }
     }
 
+    // Capture the previous avatar URL BEFORE we overwrite it so we can clean
+    // it up after the new upload + DB update succeed. Failure to delete the
+    // old object is non-fatal (best-effort).
+    const previous = await this.repository.findById(userId)
+    const previousImageUrl = previous?.image as string | null | undefined
+
     const ext = sniffed === 'image/png' ? 'png' : 'jpg'
     const key = `avatars/${userId}-${crypto.randomUUID()}.${ext}`
     const imageUrl = await uploadToR2(buf, key, sniffed)
@@ -119,6 +125,16 @@ export class MeModule {
     const updated = await this.repository.updateImage(userId, imageUrl)
     if (!updated) {
       return { error: { code: 'USER_NOT_FOUND', message: 'User not found' }, status: 404 }
+    }
+
+    // Clean up the previous R2 object. Only delete if it lived under our
+    // public bucket (skip Google avatars or external URLs).
+    if (previousImageUrl && previousImageUrl !== imageUrl) {
+      const previousKey = r2KeyFromPublicUrl(previousImageUrl)
+      if (previousKey) {
+        // Fire-and-forget; do not await so the response time stays low.
+        void deleteFromR2(previousKey)
+      }
     }
 
     return { data: { imageUrl }, status: 200 }
