@@ -3,7 +3,7 @@ import { PermitTable } from '../../lib/types'
 import { sql } from 'kysely'
 
 export class PermitRepository {
-  async create(data: Omit<PermitTable, 'id' | 'createdAt' | 'updatedAt' | 'status'>) {
+  async create(data: Omit<PermitTable, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { daysUsed?: number | null }) {
     const id = crypto.randomUUID()
     return await db
       .insertInto('permit')
