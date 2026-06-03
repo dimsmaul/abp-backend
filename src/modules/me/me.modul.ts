@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { MeRepository } from './me.repository'
 import { updateMeSchema } from './me.schema'
 import { deleteFromR2, r2KeyFromPublicUrl, uploadToR2 } from '../../lib/s3'
@@ -118,9 +119,18 @@ export class MeModule {
     const previous = await this.repository.findById(userId)
     const previousImageUrl = previous?.image as string | null | undefined
 
-    const ext = sniffed === 'image/png' ? 'png' : 'jpg'
-    const key = `avatars/${userId}-${crypto.randomUUID()}.${ext}`
-    const imageUrl = await uploadToR2(buf, key, sniffed)
+    // Re-encode through sharp into a clean baseline JPEG (1024x1024 cover,
+    // q85, mozjpeg). Without this, the Dart-encoded JPEG from mobile's
+    // stripExif step occasionally trips Android's ImageDecoder with
+    // "unimplemented" even though browsers decode it fine.
+    const normalized = await sharp(buf)
+      .rotate() // honor EXIF orientation before stripping
+      .resize(1024, 1024, { fit: 'cover', position: 'centre' })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer()
+
+    const key = `avatars/${userId}-${crypto.randomUUID()}.jpg`
+    const imageUrl = await uploadToR2(normalized, key, 'image/jpeg')
 
     const updated = await this.repository.updateImage(userId, imageUrl)
     if (!updated) {
