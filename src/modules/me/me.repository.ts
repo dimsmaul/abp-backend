@@ -51,25 +51,14 @@ export class MeRepository {
   }
 
   /**
-   * Upsert (userId, platform) → fcmToken. One device per platform per user
-   * keeps the FCM fan-out cheap and avoids stale tokens piling up when the
-   * user reinstalls the app.
+   * One FCM token per user — overwrites any previously stored token so the
+   * old device stops getting pushes. Latest registration wins.
    */
-  async upsertDevice(userId: string, fcmToken: string, platform: string) {
+  async setFcmToken(userId: string, fcmToken: string) {
     return await db
-      .insertInto('user_devices')
-      .values({
-        userId,
-        fcmToken,
-        platform,
-        updatedAt: new Date(),
-      })
-      .onConflict((oc) =>
-        oc.columns(['userId', 'platform']).doUpdateSet({
-          fcmToken,
-          updatedAt: new Date(),
-        }),
-      )
+      .updateTable('user')
+      .set({ fcmToken, updatedAt: new Date() })
+      .where('id', '=', userId)
       .returningAll()
       .executeTakeFirst()
   }

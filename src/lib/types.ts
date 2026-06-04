@@ -12,7 +12,6 @@ export interface Database {
   permit: PermitTable
   leave_balance: LeaveBalanceTable
   announcement: AnnouncementTable
-  user_devices: UserDeviceTable
 }
 
 export interface UserTable {
@@ -25,6 +24,7 @@ export interface UserTable {
   department?: string
   faceEmbedding?: string
   faceRecognitionEnabled: boolean
+  fcmToken?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -157,15 +157,6 @@ export interface LeaveBalanceTable {
   notes?: string | null
   created_at: Generated<Date>
   updated_at: Generated<Date>
-}
-
-export interface UserDeviceTable {
-  id: Generated<string>
-  userId: string
-  fcmToken: string
-  platform: string
-  createdAt: Generated<Date>
-  updatedAt: Generated<Date>
 }
 
 export interface AnnouncementTable {

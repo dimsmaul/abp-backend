@@ -51,10 +51,11 @@ export interface FcmPayload {
 }
 
 /**
- * Push a notification to every device the user has registered.
+ * Push a notification to the single FCM token stored on the user row.
  *
- * Returns the number of successful sends. Failures are swallowed; partial
- * delivery is the norm (stale tokens get pruned by Firebase server-side).
+ * Returns 1 on a successful send, 0 otherwise. Failures are swallowed —
+ * announcement publish path doesn't get to fail just because Firebase is
+ * flaky.
  */
 export async function sendToUser(
   userId: string,
@@ -63,20 +64,21 @@ export async function sendToUser(
   const admin = loadAdmin()
   if (!admin) return 0
 
-  const tokens = await db
-    .selectFrom('user_devices')
+  const row = await db
+    .selectFrom('user')
     .select(['fcmToken'])
-    .where('userId', '=', userId)
-    .execute()
-  if (tokens.length === 0) return 0
+    .where('id', '=', userId)
+    .executeTakeFirst()
+  const token = row?.fcmToken
+  if (!token) return 0
 
   try {
-    const res = await admin.messaging().sendEachForMulticast({
-      tokens: tokens.map((t) => t.fcmToken),
+    const res = await admin.messaging().send({
+      token,
       notification: { title: payload.title, body: payload.body },
       data: payload.data,
     })
-    return res.successCount
+    return res ? 1 : 0
   } catch (e: any) {
     console.error('[fcm] sendToUser failed', { userId, name: e?.name })
     return 0
@@ -84,26 +86,29 @@ export async function sendToUser(
 }
 
 /**
- * Broadcast a notification to every registered device.
- *
- * Used by announcement creation. Batches into chunks of 500 because that's
- * `sendEachForMulticast`'s limit per request.
+ * Broadcast to every user that has an FCM token. One row per user, so the
+ * token list is bounded by the user count. Batches into chunks of 500 —
+ * `sendEachForMulticast`'s per-request limit.
  */
 export async function broadcast(payload: FcmPayload): Promise<number> {
   const admin = loadAdmin()
   if (!admin) return 0
 
-  const tokens = await db
-    .selectFrom('user_devices')
+  const rows = await db
+    .selectFrom('user')
     .select(['fcmToken'])
+    .where('fcmToken', 'is not', null)
     .execute()
+  const tokens = rows
+    .map((r) => r.fcmToken)
+    .filter((t): t is string => typeof t === 'string' && t.length > 0)
   if (tokens.length === 0) return 0
 
   let total = 0
   const messaging = admin.messaging()
   const chunkSize = 500
   for (let i = 0; i < tokens.length; i += chunkSize) {
-    const slice = tokens.slice(i, i + chunkSize).map((t) => t.fcmToken)
+    const slice = tokens.slice(i, i + chunkSize)
     try {
       const res = await messaging.sendEachForMulticast({
         tokens: slice,
