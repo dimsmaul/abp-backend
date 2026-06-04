@@ -1,36 +1,19 @@
-import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
+import { Hono } from 'hono'
 import { OfficeController } from './office.controller'
-import { roleGuard } from '../../lib/rbac'
-import { z } from '../../lib/openapi'
+import { authGuard, roleGuard } from '../../lib/rbac'
 
-const office = new OpenAPIHono()
+const office = new Hono()
 const controller = new OfficeController()
 
-const findAllRoute = createRoute({
-  method: 'get',
-  path: '/offices',
-  summary: 'Get all offices',
-  tags: ['Office'],
-  responses: {
-    200: {
-      description: 'List of offices',
-      content: {
-        'application/json': {
-          schema: z.object({
-            data: z.array(z.any()),
-          }),
-        },
-      },
-    },
-  },
-})
+// Mobile — any authenticated user. Presence flow filters by regency before
+// running polygon hit-testing on the device.
+office.get('/mobile/offices', authGuard(), (c) => controller.findAll(c))
 
-office.openapi(findAllRoute, (c) => controller.findAll(c))
-
-// Plain Hono routes (mixed middleware/handler) — openapi.openapi() only accepts (route, handler[, hook])
-office.post('/offices', roleGuard(['admin']), (c) => controller.create(c))
-office.get('/offices/:id', (c) => controller.findOne(c))
-office.patch('/offices/:id', roleGuard(['admin']), (c) => controller.update(c))
-office.delete('/offices/:id', roleGuard(['admin']), (c) => controller.delete(c))
+// Web admin — full CRUD.
+office.get('/web/offices', roleGuard(['admin']), (c) => controller.findAll(c))
+office.get('/web/offices/:id', roleGuard(['admin']), (c) => controller.findOne(c))
+office.post('/web/offices', roleGuard(['admin']), (c) => controller.create(c))
+office.patch('/web/offices/:id', roleGuard(['admin']), (c) => controller.update(c))
+office.delete('/web/offices/:id', roleGuard(['admin']), (c) => controller.delete(c))
 
 export default office

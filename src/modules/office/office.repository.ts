@@ -15,17 +15,36 @@ export class OfficeRepository {
       .executeTakeFirstOrThrow()
   }
 
-  async findAll(filters: { page: number; limit: number }) {
+  async findAll(filters: {
+    page: number
+    limit: number
+    regency?: string
+  }) {
     const offset = (filters.page - 1) * filters.limit
+    const baseList = () => {
+      let q = db.selectFrom('office').selectAll()
+      if (filters.regency) {
+        // Case-insensitive partial match — the device geocoder may return
+        // "Kota Surabaya" while the office record uses "Surabaya" or vice
+        // versa, so a substring filter is more forgiving than equality.
+        q = q.where(sql<boolean>`lower(regency) like ${'%' + filters.regency.toLowerCase() + '%'}`)
+      }
+      return q
+    }
+    const baseCount = () => {
+      let q = db.selectFrom('office').select(sql`count(*)`.as('count'))
+      if (filters.regency) {
+        q = q.where(sql<boolean>`lower(regency) like ${'%' + filters.regency.toLowerCase() + '%'}`)
+      }
+      return q
+    }
     const [items, countResult] = await Promise.all([
-      db
-        .selectFrom('office')
-        .selectAll()
+      baseList()
         .orderBy('name', 'asc')
         .limit(filters.limit)
         .offset(offset)
         .execute(),
-      db.selectFrom('office').select(sql`count(*)`.as('count')).executeTakeFirst(),
+      baseCount().executeTakeFirst(),
     ])
     return {
       items,

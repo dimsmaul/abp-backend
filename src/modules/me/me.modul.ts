@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 import { MeRepository } from './me.repository'
-import { updateMeSchema } from './me.schema'
+import { enrollFaceSchema, updateMeSchema } from './me.schema'
 import { deleteFromR2, r2KeyFromPublicUrl, uploadToR2 } from '../../lib/s3'
 
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png'])
@@ -150,5 +150,32 @@ export class MeModule {
     }
 
     return { data: { imageUrl }, status: 200 }
+  }
+
+  async processFaceEnrollment(userId: string, body: any) {
+    const validated = enrollFaceSchema.safeParse(body)
+    if (!validated.success) {
+      return {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid embedding',
+          details: validated.error.flatten(),
+        },
+        status: 422,
+      }
+    }
+
+    const updated = await this.repository.updateFaceEmbedding(
+      userId,
+      JSON.stringify(validated.data.embedding),
+    )
+    if (!updated) {
+      return { error: { code: 'USER_NOT_FOUND', message: 'User not found' }, status: 404 }
+    }
+
+    return {
+      data: { faceRecognitionEnabled: true },
+      status: 200,
+    }
   }
 }

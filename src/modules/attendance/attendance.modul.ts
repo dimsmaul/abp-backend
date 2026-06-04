@@ -5,6 +5,85 @@ import { OfficeRepository } from '../office/office.repository'
 import { isPointInRadius, isPointInPolygon } from '../../lib/geofence'
 import { watermarkPhoto } from '../../lib/watermark'
 import { UserRepository } from '../user/user.repository'
+import {
+  InvalidEmbeddingError,
+  cosineSimilarity,
+  parseEmbedding,
+  similarityThreshold,
+} from '../../lib/face'
+
+type FaceCheckOk = { ok: true; score: number | null }
+type FaceCheckErr = {
+  ok: false
+  error: { code: string; message: string; details?: unknown }
+  status: number
+}
+
+/**
+ * Compare the candidate embedding from the request against the user's
+ * enrolled embedding. Returns the similarity score so callers can persist it
+ * for audit, or a structured error mirroring the rest of the module style.
+ *
+ * Skips silently (ok with score=null) when faceRecognitionEnabled is false —
+ * keeps legacy users functional until they enroll.
+ */
+function verifyFace(
+  user: { faceRecognitionEnabled?: boolean; faceEmbedding?: string | null },
+  candidateRaw: unknown,
+): FaceCheckOk | FaceCheckErr {
+  if (!user.faceRecognitionEnabled) {
+    return { ok: true, score: null }
+  }
+  if (!user.faceEmbedding) {
+    return {
+      ok: false,
+      error: {
+        code: 'FACE_NOT_ENROLLED',
+        message: 'Wajah belum didaftarkan. Buka Profil → Setup Wajah.',
+      },
+      status: 412,
+    }
+  }
+  if (candidateRaw == null || candidateRaw === '') {
+    return {
+      ok: false,
+      error: {
+        code: 'FACE_REQUIRED',
+        message: 'Embedding wajah dibutuhkan untuk presensi.',
+      },
+      status: 422,
+    }
+  }
+  let candidate: number[]
+  let stored: number[]
+  try {
+    candidate = parseEmbedding(candidateRaw)
+    stored = parseEmbedding(user.faceEmbedding)
+  } catch (e) {
+    if (e instanceof InvalidEmbeddingError) {
+      return {
+        ok: false,
+        error: { code: 'INVALID_EMBEDDING', message: e.message },
+        status: 422,
+      }
+    }
+    throw e
+  }
+  const score = cosineSimilarity(candidate, stored)
+  const threshold = similarityThreshold()
+  if (score < threshold) {
+    return {
+      ok: false,
+      error: {
+        code: 'FACE_MISMATCH',
+        message: `Wajah tidak cocok dengan profil (skor ${score.toFixed(3)} < ${threshold}).`,
+        details: { score, threshold },
+      },
+      status: 409,
+    }
+  }
+  return { ok: true, score }
+}
 
 async function evaluateZone(lat: number, lng: number) {
   const officeRepo = new OfficeRepository()
@@ -78,14 +157,13 @@ export class AttendanceModule {
       validated.data.longitude,
     )
 
-    // --- Face Recognition Scaffolding ---
+    // --- Face Recognition (cosine similarity vs enrolled embedding) ---
     const userRepo = new UserRepository()
     const user = await userRepo.findById(userId)
 
-    if (user?.faceRecognitionEnabled) {
-      // TODO: Implement actual face recognition logic here
-      // For now, we assume it's valid if the photo is present
-      console.log(`[FaceRecognition] Checking face for user ${userId}`)
+    const face = verifyFace(user ?? {}, body['faceEmbedding'])
+    if (!face.ok) {
+      return { error: face.error, status: face.status }
     }
 
     const serverTime = new Date()
@@ -111,6 +189,7 @@ export class AttendanceModule {
       locationName,
       isWithinZone,
       serverTime,
+      ...(face.score !== null ? { faceScore: face.score } : {}),
     })
 
     return { data, status: 201 }
@@ -145,6 +224,15 @@ export class AttendanceModule {
       validated.data.longitude,
     )
 
+    // --- Face Recognition (Same gate as Check-In) ---
+    const userRepo = new UserRepository()
+    const user = await userRepo.findById(userId)
+
+    const face = verifyFace(user ?? {}, body['faceEmbedding'])
+    if (!face.ok) {
+      return { error: face.error, status: face.status }
+    }
+
     const serverTime = new Date()
     const locationName = nearestOfficeName || "Field (Outside Zone)"
 
@@ -168,6 +256,7 @@ export class AttendanceModule {
       locationName,
       isWithinZone,
       serverTime,
+      ...(face.score !== null ? { faceScore: face.score } : {}),
     })
 
     return { data, status: 201 }
