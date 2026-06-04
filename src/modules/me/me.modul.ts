@@ -198,10 +198,9 @@ export class MeModule {
         status: 422,
       }
     }
-    const data = await this.repository.upsertDevice(
+    const data = await this.repository.setFcmToken(
       userId,
       validated.data.fcmToken,
-      validated.data.platform,
     )
     return { data, status: 200 }
   }

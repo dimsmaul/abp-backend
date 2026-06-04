@@ -18,9 +18,12 @@ export const enrollFaceSchema = z.object({
 
 export type EnrollFaceInput = z.infer<typeof enrollFaceSchema>
 
+// One FCM token per user — stored directly on `user.fcmToken`. Platform is
+// no longer tracked since the mobile app is the only consumer that needs
+// the token registered.
 export const registerDeviceSchema = z.object({
   fcmToken: z.string().min(10),
-  platform: z.enum(['android', 'ios', 'web']),
+  platform: z.enum(['android', 'ios', 'web']).optional(),
 })
 
 export type RegisterDeviceInput = z.infer<typeof registerDeviceSchema>
