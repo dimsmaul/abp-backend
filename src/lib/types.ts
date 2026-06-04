@@ -12,6 +12,7 @@ export interface Database {
   permit: PermitTable
   leave_balance: LeaveBalanceTable
   announcement: AnnouncementTable
+  user_devices: UserDeviceTable
 }
 
 export interface UserTable {
@@ -75,6 +76,7 @@ export interface AttendanceTable {
   isWithinZone: boolean
   serverTime: Date
   faceScore?: number
+  isLate: boolean
   createdAt: Generated<Date>
 }
 
@@ -110,14 +112,26 @@ export interface OfficeTable {
   polygon?: number[][] | null
   province?: string | null
   regency?: string | null
+  workStartTime?: string | null
+  workEndTime?: string | null
+  lateThresholdMinutes?: number | null
   createdAt: Generated<Date>
   updatedAt: Generated<Date>
 }
+
+export type PermitCategory =
+  | 'leave'
+  | 'sick'
+  | 'permit'
+  | 'overtime'
+  | 'reimburse'
+  | 'loan'
 
 export interface PermitTable {
   id: string
   userId: string
   type: 'sick' | 'leave' | 'permit'
+  category: PermitCategory
   description: string
   startDate: Date
   endDate: Date
@@ -125,6 +139,11 @@ export interface PermitTable {
   status: 'pending' | 'approved' | 'rejected'
   notes?: string
   daysUsed?: number | null
+  overtimeHours?: number | null
+  reimburseAmount?: number | null
+  reimburseReceiptUrl?: string | null
+  loanAmount?: number | null
+  loanTenorMonths?: number | null
   createdAt: Generated<Date>
   updatedAt: Generated<Date>
 }
@@ -138,6 +157,15 @@ export interface LeaveBalanceTable {
   notes?: string | null
   created_at: Generated<Date>
   updated_at: Generated<Date>
+}
+
+export interface UserDeviceTable {
+  id: Generated<string>
+  userId: string
+  fcmToken: string
+  platform: string
+  createdAt: Generated<Date>
+  updatedAt: Generated<Date>
 }
 
 export interface AnnouncementTable {

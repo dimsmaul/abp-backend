@@ -1,5 +1,10 @@
 import { z } from '../../lib/openapi'
 
+// HH:MM or HH:MM:SS — Postgres `time` accepts both.
+const timeString = z
+  .string()
+  .regex(/^\d{2}:\d{2}(:\d{2})?$/, 'expected HH:MM or HH:MM:SS')
+
 export const createOfficeSchema = z.object({
   name: z.string().min(1),
   zoneType: z.enum(['radius', 'polygon']).default('radius'),
@@ -10,6 +15,9 @@ export const createOfficeSchema = z.object({
   address: z.string().optional(),
   province: z.string().optional().nullable(),
   regency: z.string().optional().nullable(),
+  workStartTime: timeString.optional().nullable(),
+  workEndTime: timeString.optional().nullable(),
+  lateThresholdMinutes: z.number().int().min(0).max(240).optional().nullable(),
 })
 
 export const updateOfficeSchema = z.object({
@@ -22,6 +30,9 @@ export const updateOfficeSchema = z.object({
   address: z.string().optional().nullable(),
   province: z.string().optional().nullable(),
   regency: z.string().optional().nullable(),
+  workStartTime: timeString.optional().nullable(),
+  workEndTime: timeString.optional().nullable(),
+  lateThresholdMinutes: z.number().int().min(0).max(240).optional().nullable(),
 })
 
 // Mobile presence flow: filter offices the user is potentially inside.
