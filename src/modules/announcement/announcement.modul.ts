@@ -1,5 +1,6 @@
 import { AnnouncementRepository, type AnnouncementPriority } from './announcement.repository'
 import { createAnnouncementSchema, updateAnnouncementSchema } from './announcement.schema'
+import { broadcast as fcmBroadcast } from '../../lib/fcm'
 
 export class AnnouncementModule {
   private repository = new AnnouncementRepository()
@@ -52,6 +53,18 @@ export class AnnouncementModule {
       expiresAt: validated.data.expiresAt ?? null,
       publishedBy,
     })
+
+    // Best-effort push to every registered device. Errors swallowed inside
+    // the FCM helper so a flaky push doesn't reject the create response.
+    // `data` is technically nullable (insert→findById round-trip), so guard.
+    if (data) {
+      void fcmBroadcast({
+        title: data.title,
+        body: data.body,
+        data: { announcementId: String(data.id), type: 'announcement' },
+      }).catch(() => {})
+    }
+
     return { data, status: 201 }
   }
 

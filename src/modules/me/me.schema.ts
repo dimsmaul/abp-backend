@@ -17,3 +17,10 @@ export const enrollFaceSchema = z.object({
 })
 
 export type EnrollFaceInput = z.infer<typeof enrollFaceSchema>
+
+export const registerDeviceSchema = z.object({
+  fcmToken: z.string().min(10),
+  platform: z.enum(['android', 'ios', 'web']),
+})
+
+export type RegisterDeviceInput = z.infer<typeof registerDeviceSchema>

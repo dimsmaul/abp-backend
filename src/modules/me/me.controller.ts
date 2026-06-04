@@ -31,6 +31,16 @@ export class MeController {
     return c.json(successResponse(result.data, 'Face enrolled'))
   }
 
+  async registerDevice(c: Context) {
+    const user = c.get('user')
+    const body = await c.req.json()
+    const result = await this.module.processRegisterDevice(user.id, body)
+    if (result.error) {
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
+    }
+    return c.json(successResponse(result.data, 'Device registered'))
+  }
+
   async uploadAvatar(c: Context) {
     const user = c.get('user')
     try {

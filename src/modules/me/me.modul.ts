@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 import { MeRepository } from './me.repository'
-import { enrollFaceSchema, updateMeSchema } from './me.schema'
+import { enrollFaceSchema, updateMeSchema, registerDeviceSchema } from './me.schema'
 import { deleteFromR2, r2KeyFromPublicUrl, uploadToR2 } from '../../lib/s3'
 
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png'])
@@ -177,5 +177,25 @@ export class MeModule {
       data: { faceRecognitionEnabled: true },
       status: 200,
     }
+  }
+
+  async processRegisterDevice(userId: string, body: any) {
+    const validated = registerDeviceSchema.safeParse(body)
+    if (!validated.success) {
+      return {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid device payload',
+          details: validated.error.flatten(),
+        },
+        status: 422,
+      }
+    }
+    const data = await this.repository.upsertDevice(
+      userId,
+      validated.data.fcmToken,
+      validated.data.platform,
+    )
+    return { data, status: 200 }
   }
 }

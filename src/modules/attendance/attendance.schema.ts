@@ -27,6 +27,13 @@ export const recapQuerySchema = z.object({
   department: z.string().optional(),
 })
 
+export const calendarQuerySchema = z.object({
+  // YYYY-MM
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'month must be in YYYY-MM format'),
+})
+
+export type CalendarQuery = z.infer<typeof calendarQuerySchema>
+
 export type CheckInInput = z.infer<typeof checkInSchema>
 export type CheckOutInput = z.infer<typeof checkOutSchema>
 export type AttendanceQuery = z.infer<typeof attendanceQuerySchema>

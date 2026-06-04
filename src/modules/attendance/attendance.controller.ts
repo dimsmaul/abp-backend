@@ -70,6 +70,16 @@ export class AttendanceController {
     return c.json(successResponse(result.data))
   }
 
+  async getCalendar(c: Context) {
+    const user = c.get('user')
+    const query = c.req.query()
+    const result = await this.module.fetchCalendar(user.id, query)
+    if (result.error) {
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
+    }
+    return c.json(successResponse(result.data?.items ?? [], 'Calendar fetched'))
+  }
+
   async getMapPoints(c: Context) {
     const date = c.req.query('date')
 
