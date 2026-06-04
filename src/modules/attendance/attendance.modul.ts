@@ -1,5 +1,5 @@
 import { AttendanceRepository } from './attendance.repository'
-import { checkInSchema, checkOutSchema, attendanceQuerySchema, recapQuerySchema } from './attendance.schema'
+import { checkInSchema, checkOutSchema, attendanceQuerySchema, recapQuerySchema, calendarQuerySchema } from './attendance.schema'
 import { uploadToR2 } from '../../lib/s3'
 import { OfficeRepository } from '../office/office.repository'
 import { isPointInRadius, isPointInPolygon } from '../../lib/geofence'
@@ -103,7 +103,7 @@ async function evaluateZone(lat: number, lng: number) {
   const { items: offices } = await officeRepo.findAll({ page: 1, limit: 500 })
 
   if (offices.length === 0) {
-    return { isWithinZone: true, nearestOfficeName: '' }
+    return { isWithinZone: true, nearestOfficeName: '', matchedOffice: null as any }
   }
 
   for (const office of offices) {
@@ -112,7 +112,7 @@ async function evaluateZone(lat: number, lng: number) {
       const raw = (office as any).polygon
       const poly = typeof raw === 'string' ? JSON.parse(raw) : raw
       if (Array.isArray(poly) && isPointInPolygon(lat, lng, poly)) {
-        return { isWithinZone: true, nearestOfficeName: office.name }
+        return { isWithinZone: true, nearestOfficeName: office.name, matchedOffice: office }
       }
     } else {
       if (
@@ -127,11 +127,38 @@ async function evaluateZone(lat: number, lng: number) {
           Number(office.radius),
         )
       ) {
-        return { isWithinZone: true, nearestOfficeName: office.name }
+        return { isWithinZone: true, nearestOfficeName: office.name, matchedOffice: office }
       }
     }
   }
-  return { isWithinZone: false, nearestOfficeName: '' }
+  return { isWithinZone: false, nearestOfficeName: '', matchedOffice: null as any }
+}
+
+/**
+ * Compute lateness against the matched office's work schedule.
+ *
+ * - `serverTime` is a server-side `new Date()` (UTC clock under the hood).
+ * - Office `workStartTime` is stored as a TIME column representing local
+ *   Asia/Jakarta (UTC+7) wall clock — no offset stored.
+ * - We convert serverTime to WIB minutes-of-day and compare against the
+ *   work start time + grace minutes. No office match (`matchedOffice` null)
+ *   means we can't decide → not late.
+ */
+function computeIsLate(serverTime: Date, matchedOffice: any | null): boolean {
+  if (!matchedOffice) return false
+  const startStr = matchedOffice.workStartTime as string | null | undefined
+  if (!startStr) return false
+  const m = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(startStr)
+  if (!m) return false
+  const startMinutes = Number(m[1]) * 60 + Number(m[2])
+  const threshold = Number(matchedOffice.lateThresholdMinutes ?? 0)
+
+  // serverTime → WIB (UTC+7) minutes-of-day
+  const wibMs = serverTime.getTime() + 7 * 60 * 60 * 1000
+  const wib = new Date(wibMs)
+  const wibMinutes = wib.getUTCHours() * 60 + wib.getUTCMinutes()
+
+  return wibMinutes > startMinutes + threshold
 }
 
 async function fileToWatermarkedBuffer(
@@ -165,7 +192,7 @@ export class AttendanceModule {
     }
 
     // --- Geofencing Validation ---
-    const { isWithinZone, nearestOfficeName } = await evaluateZone(
+    const { isWithinZone, nearestOfficeName, matchedOffice } = await evaluateZone(
       validated.data.latitude,
       validated.data.longitude,
     )
@@ -181,6 +208,7 @@ export class AttendanceModule {
 
     const serverTime = new Date()
     const locationName = nearestOfficeName || "Field (Outside Zone)"
+    const isLate = computeIsLate(serverTime, matchedOffice)
 
     const watermarked = await fileToWatermarkedBuffer(photo, {
       latitude: validated.data.latitude,
@@ -202,6 +230,7 @@ export class AttendanceModule {
       locationName,
       isWithinZone,
       serverTime,
+      isLate,
       ...(face.score !== null ? { faceScore: face.score } : {}),
     })
 
@@ -236,6 +265,7 @@ export class AttendanceModule {
       validated.data.latitude,
       validated.data.longitude,
     )
+    // check-out doesn't recompute isLate; the check-in row owns that flag.
 
     // --- Face Recognition (Same gate as Check-In) ---
     const userRepo = new UserRepository()
@@ -269,6 +299,7 @@ export class AttendanceModule {
       locationName,
       isWithinZone,
       serverTime,
+      isLate: false,
       ...(face.score !== null ? { faceScore: face.score } : {}),
     })
 
@@ -392,6 +423,89 @@ export class AttendanceModule {
     })
 
     return { data: { items }, status: 200 }
+  }
+
+  /**
+   * Build a per-day calendar for the user's attendance in a given month.
+   *
+   * Status rules:
+   *   - `holiday` → Sat/Sun (weekend); skipped, no attendance expected.
+   *   - `present` → has check_in record, not flagged late.
+   *   - `late`    → has check_in record, isLate === true.
+   *   - `absent`  → weekday without any check_in. Future dates in the
+   *                 current month are also reported as `absent`; the FE
+   *                 can decide whether to render them or hide.
+   *
+   * Dates are emitted in WIB (UTC+7) calendar terms so the mobile day
+   * grouping matches what the user sees on the lock screen.
+   */
+  async fetchCalendar(userId: string, query: any) {
+    const validated = calendarQuerySchema.safeParse(query)
+    if (!validated.success) {
+      return { error: { code: 'VALIDATION_ERROR', message: 'Invalid month' }, status: 422 }
+    }
+
+    const [yearStr, monthStr] = validated.data.month.split('-')
+    const year = Number(yearStr)
+    const month = Number(monthStr) // 1-12
+
+    // Month boundaries in WIB. WIB midnight 1st is UTC 17:00 of the
+    // previous day; we use that as the lower bound so a 00:30 WIB check-in
+    // (UTC 17:30 prev day) is still considered the 1st.
+    const wibOffsetMs = 7 * 60 * 60 * 1000
+    const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0) - wibOffsetMs)
+    const end = new Date(Date.UTC(year, month, 1, 0, 0, 0) - wibOffsetMs - 1)
+
+    const rows = await this.repository.findMonthlyByUser(userId, start, end)
+
+    // Group rows per WIB date.
+    const byDate = new Map<string, { checkIn?: Date; checkOut?: Date; isLate: boolean }>()
+    for (const r of rows) {
+      const wib = new Date(new Date(r.serverTime).getTime() + wibOffsetMs)
+      const dateStr = `${wib.getUTCFullYear()}-${String(wib.getUTCMonth() + 1).padStart(2, '0')}-${String(wib.getUTCDate()).padStart(2, '0')}`
+      const entry = byDate.get(dateStr) ?? { isLate: false }
+      if (r.type === 'check_in') {
+        entry.checkIn = new Date(r.serverTime)
+        entry.isLate = entry.isLate || !!r.isLate
+      } else if (r.type === 'check_out') {
+        entry.checkOut = new Date(r.serverTime)
+      }
+      byDate.set(dateStr, entry)
+    }
+
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const data: Array<{
+      date: string
+      status: 'present' | 'late' | 'absent' | 'holiday'
+      checkIn?: string
+      checkOut?: string
+    }> = []
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      // getDay() against (year, month-1, d) — JS Date built in local TZ.
+      // The day-of-week math doesn't depend on hour, so it's stable across
+      // server/client timezones.
+      const dow = new Date(year, month - 1, d).getDay()
+      const isWeekend = dow === 0 || dow === 6
+
+      const entry = byDate.get(dateStr)
+      if (isWeekend && !entry) {
+        data.push({ date: dateStr, status: 'holiday' })
+        continue
+      }
+      if (entry?.checkIn) {
+        data.push({
+          date: dateStr,
+          status: entry.isLate ? 'late' : 'present',
+          checkIn: entry.checkIn.toISOString(),
+          checkOut: entry.checkOut?.toISOString(),
+        })
+      } else {
+        data.push({ date: dateStr, status: isWeekend ? 'holiday' : 'absent' })
+      }
+    }
+
+    return { data: { items: data }, status: 200 }
   }
 
   async fetchMapPoints(dateStr?: string) {

@@ -137,6 +137,27 @@ export class AttendanceRepository {
     return await query.execute()
   }
 
+  /**
+   * Pull all attendance rows for `userId` whose serverTime falls inside the
+   * given month boundaries. Used by the mobile calendar view to plot a
+   * per-day status (present / late / absent / holiday).
+   */
+  async findMonthlyByUser(userId: string, start: Date, end: Date) {
+    return await db
+      .selectFrom('attendance')
+      .select([
+        'id',
+        'type',
+        'serverTime',
+        'isLate',
+      ])
+      .where('userId', '=', userId)
+      .where('serverTime', '>=', start)
+      .where('serverTime', '<=', end)
+      .orderBy('serverTime', 'asc')
+      .execute()
+  }
+
   async findMapPoints(start: Date, end: Date) {
     return await db
       .selectFrom('attendance')
