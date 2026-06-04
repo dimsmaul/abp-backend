@@ -87,7 +87,10 @@ function verifyFace(
 
 async function evaluateZone(lat: number, lng: number) {
   const officeRepo = new OfficeRepository()
-  const offices = await officeRepo.findAll()
+  // Repository returns a paginated wrapper `{ items, page, limit, total }`,
+  // so we must read `.items` (not iterate the wrapper). Limit set high
+  // enough to cover the active office list in one fetch.
+  const { items: offices } = await officeRepo.findAll({ page: 1, limit: 500 })
 
   if (offices.length === 0) {
     return { isWithinZone: true, nearestOfficeName: '' }
