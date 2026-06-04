@@ -28,21 +28,28 @@ type FaceCheckErr = {
  * keeps legacy users functional until they enroll.
  */
 function verifyFace(
-  user: { faceRecognitionEnabled?: boolean; faceEmbedding?: string | null },
+  user: {
+    image?: string | null
+    faceRecognitionEnabled?: boolean
+    faceEmbedding?: string | null
+  },
   candidateRaw: unknown,
 ): FaceCheckOk | FaceCheckErr {
-  // Strict mode: face enrollment is mandatory. The previous skip-if-disabled
-  // path let users absent themselves before their reference embedding was
-  // saved, defeating the whole compare. Any user without a stored embedding
-  // must update their avatar (the mobile client auto-enrolls from it) before
-  // they can check in / out.
+  // Strict mode: face enrollment is mandatory. Distinguish two failure
+  // modes so the user message actually matches reality:
+  //   - no profile photo set yet → ask them to upload one
+  //   - profile photo IS set but ML Kit couldn't find a face in it (the
+  //     mobile auto-enroll silently produced no embedding) → tell them to
+  //     re-upload a clearer face photo
   if (!user.faceEmbedding) {
+    const hasAvatar = typeof user.image === 'string' && user.image.length > 0
     return {
       ok: false,
       error: {
         code: 'FACE_NOT_ENROLLED',
-        message:
-          'Profile belum di set. Buka profil dan unggah foto profil terlebih dahulu.',
+        message: hasAvatar
+          ? 'Foto profil belum terbaca sebagai wajah. Ganti foto profil dengan foto wajah yang jelas (frontal, terang, hanya kamu).'
+          : 'Belum ada foto profil. Buka profil dan unggah foto wajah Anda.',
       },
       status: 412,
     }
