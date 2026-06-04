@@ -74,6 +74,7 @@ export interface AttendanceTable {
   locationName?: string
   isWithinZone: boolean
   serverTime: Date
+  faceScore?: number
   createdAt: Generated<Date>
 }
 
@@ -107,6 +108,8 @@ export interface OfficeTable {
   address?: string | null
   zone_type: 'radius' | 'polygon'
   polygon?: number[][] | null
+  province?: string | null
+  regency?: string | null
   createdAt: Generated<Date>
   updatedAt: Generated<Date>
 }

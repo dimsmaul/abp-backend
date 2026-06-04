@@ -8,6 +8,12 @@ export class OfficeController {
   async findAll(c: Context) {
     const query = c.req.query()
     const result = await this.module.fetchAll(query)
+    if (result.error) {
+      return c.json(
+        { message: result.error.message, error: result.error },
+        result.status as any,
+      )
+    }
     const { items, page, limit, total } = result.data
     return c.json(paginatedResponse(items, { page, limit, total }, 'Offices fetched'))
   }
