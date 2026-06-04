@@ -31,15 +31,18 @@ function verifyFace(
   user: { faceRecognitionEnabled?: boolean; faceEmbedding?: string | null },
   candidateRaw: unknown,
 ): FaceCheckOk | FaceCheckErr {
-  if (!user.faceRecognitionEnabled) {
-    return { ok: true, score: null }
-  }
+  // Strict mode: face enrollment is mandatory. The previous skip-if-disabled
+  // path let users absent themselves before their reference embedding was
+  // saved, defeating the whole compare. Any user without a stored embedding
+  // must update their avatar (the mobile client auto-enrolls from it) before
+  // they can check in / out.
   if (!user.faceEmbedding) {
     return {
       ok: false,
       error: {
         code: 'FACE_NOT_ENROLLED',
-        message: 'Wajah belum didaftarkan. Buka Profil → Setup Wajah.',
+        message:
+          'Wajah belum terdaftar. Buka Profil dan unggah foto wajah yang jelas sebagai foto profil.',
       },
       status: 412,
     }
