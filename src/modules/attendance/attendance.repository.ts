@@ -2,6 +2,16 @@ import { db } from '../../lib/database'
 import { AttendanceTable } from '../../lib/types'
 import { sql } from 'kysely'
 
+// Treat a bare "YYYY-MM-DD" upper bound as end-of-day so callers passing
+// `to=today` capture every record from that day instead of only midnight.
+function _endOfDayIfDateOnly(raw: string): Date {
+  const d = new Date(raw)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    d.setUTCHours(23, 59, 59, 999)
+  }
+  return d
+}
+
 export class AttendanceRepository {
   async create(data: Omit<AttendanceTable, 'createdAt'>) {
     return await db
@@ -41,10 +51,16 @@ export class AttendanceRepository {
       base = base.where('attendance.userId', '=', filters.userId)
     }
     if (filters.from) {
+      // Date-only filter ("YYYY-MM-DD") should match the entire day, so
+      // the lower bound is midnight on that date. new Date(YYYY-MM-DD)
+      // already lands on 00:00:00 UTC so no adjustment needed here.
       base = base.where('attendance.serverTime', '>=', new Date(filters.from))
     }
     if (filters.to) {
-      base = base.where('attendance.serverTime', '<=', new Date(filters.to))
+      // Same date-only convention — the upper bound should be 23:59:59.999
+      // of that day, otherwise today's check-ins (recorded after midnight)
+      // get filtered out when callers pass `to=today`.
+      base = base.where('attendance.serverTime', '<=', _endOfDayIfDateOnly(filters.to))
     }
     if (filters.department) {
       base = base.where('user.department', '=', filters.department)
@@ -105,7 +121,8 @@ export class AttendanceRepository {
         'user.department as userDepartment',
       ])
       .where('attendance.serverTime', '>=', new Date(filters.from))
-      .where('attendance.serverTime', '<=', new Date(filters.to))
+      // Same date-only end-of-day semantics as findAll above.
+      .where('attendance.serverTime', '<=', _endOfDayIfDateOnly(filters.to))
       .orderBy('attendance.userId')
       .orderBy('attendance.serverTime', 'asc')
 
