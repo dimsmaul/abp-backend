@@ -21,6 +21,7 @@ export class PermitRepository {
     limit: number
     userId?: string
     status?: PermitTable['status']
+    category?: PermitTable['category']
   }) {
     let query = db
       .selectFrom('permit')
@@ -29,12 +30,18 @@ export class PermitRepository {
         'permit.id',
         'permit.userId',
         'permit.type',
+        'permit.category',
         'permit.description',
         'permit.startDate',
         'permit.endDate',
         'permit.attachmentUrl',
         'permit.status',
         'permit.notes',
+        'permit.overtimeHours',
+        'permit.reimburseAmount',
+        'permit.reimburseReceiptUrl',
+        'permit.loanAmount',
+        'permit.loanTenorMonths',
         'permit.createdAt',
         'user.name as userName',
         'user.department as userDepartment',
@@ -48,6 +55,10 @@ export class PermitRepository {
       query = query.where('permit.status', '=', filters.status)
     }
 
+    if (filters.category) {
+      query = query.where('permit.category', '=', filters.category)
+    }
+
     const offset = (filters.page - 1) * filters.limit
 
     const [rows, countResult] = await Promise.all([
@@ -59,12 +70,18 @@ export class PermitRepository {
       id: r.id,
       userId: r.userId,
       type: r.type,
+      category: r.category,
       description: r.description,
       startDate: r.startDate,
       endDate: r.endDate,
       attachmentUrl: r.attachmentUrl,
       status: r.status,
       notes: r.notes,
+      overtimeHours: r.overtimeHours,
+      reimburseAmount: r.reimburseAmount,
+      reimburseReceiptUrl: r.reimburseReceiptUrl,
+      loanAmount: r.loanAmount,
+      loanTenorMonths: r.loanTenorMonths,
       createdAt: r.createdAt,
       user: {
         id: r.userId,

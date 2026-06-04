@@ -31,12 +31,14 @@ export class PermitModule {
     const limit = Number(query.limit || 10)
     const status = query.status
     const userId = query.userId
+    const category = query.category
 
     const result = await this.repository.findAll({
       page,
       limit,
       status,
       userId,
+      category,
     })
     return { data: result, status: 200 }
   }
@@ -55,8 +57,34 @@ export class PermitModule {
     const payload = validated.data
     let daysUsed: number | null = null
 
+    // Default category to the legacy `type` when caller doesn't send one.
+    // Keeps old mobile clients working (they only submit type sick/leave/permit).
+    const category = payload.category ?? payload.type
+
+    // Per-category required-field guard. Schema keeps them optional so the
+    // discriminated union doesn't blow up the existing leave/sick/permit
+    // path; we enforce here.
+    if (category === 'overtime' && payload.overtimeHours == null) {
+      return {
+        error: { code: 'OVERTIME_HOURS_REQUIRED', message: 'overtimeHours wajib diisi untuk lembur' },
+        status: 422,
+      }
+    }
+    if (category === 'reimburse' && payload.reimburseAmount == null) {
+      return {
+        error: { code: 'REIMBURSE_AMOUNT_REQUIRED', message: 'reimburseAmount wajib diisi untuk reimburse' },
+        status: 422,
+      }
+    }
+    if (category === 'loan' && (payload.loanAmount == null || payload.loanTenorMonths == null)) {
+      return {
+        error: { code: 'LOAN_FIELDS_REQUIRED', message: 'loanAmount dan loanTenorMonths wajib diisi untuk pinjaman' },
+        status: 422,
+      }
+    }
+
     // 'leave' = cuti tahunan; only this type touches the balance ledger.
-    if (payload.type === 'leave') {
+    if (category === 'leave') {
       daysUsed = countWorkingDays(payload.startDate, payload.endDate)
       const year = payload.startDate.getFullYear()
       const balance = await this.leaveRepo.getOrCreate(userId, year)
@@ -78,6 +106,7 @@ export class PermitModule {
     const data = await this.repository.create({
       userId,
       ...payload,
+      category,
       daysUsed,
     } as any)
     return { data, status: 201 }
