@@ -42,7 +42,7 @@ function verifyFace(
       error: {
         code: 'FACE_NOT_ENROLLED',
         message:
-          'Wajah belum terdaftar. Buka Profil dan unggah foto wajah yang jelas sebagai foto profil.',
+          'Profile belum di set. Buka profil dan unggah foto profil terlebih dahulu.',
       },
       status: 412,
     }
