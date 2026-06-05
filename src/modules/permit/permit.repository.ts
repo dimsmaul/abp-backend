@@ -23,47 +23,53 @@ export class PermitRepository {
     status?: PermitTable['status']
     category?: PermitTable['category']
   }) {
-    let query = db
+    // Build a shared base WHERE chain. Selects are layered on top per
+    // query — combining count(*) on a builder that already has column
+    // selects would produce `SELECT col1, …, count(*)` without GROUP BY
+    // and explode at runtime (was returning 500 to the admin list page).
+    let base = db
       .selectFrom('permit')
       .innerJoin('user', 'user.id', 'permit.userId')
-      .select([
-        'permit.id',
-        'permit.userId',
-        'permit.type',
-        'permit.category',
-        'permit.description',
-        'permit.startDate',
-        'permit.endDate',
-        'permit.attachmentUrl',
-        'permit.status',
-        'permit.notes',
-        'permit.overtimeHours',
-        'permit.reimburseAmount',
-        'permit.reimburseReceiptUrl',
-        'permit.loanAmount',
-        'permit.loanTenorMonths',
-        'permit.createdAt',
-        'user.name as userName',
-        'user.department as userDepartment',
-      ])
 
     if (filters.userId) {
-      query = query.where('permit.userId', '=', filters.userId)
+      base = base.where('permit.userId', '=', filters.userId)
     }
-
     if (filters.status) {
-      query = query.where('permit.status', '=', filters.status)
+      base = base.where('permit.status', '=', filters.status)
     }
-
     if (filters.category) {
-      query = query.where('permit.category', '=', filters.category)
+      base = base.where('permit.category', '=', filters.category)
     }
 
     const offset = (filters.page - 1) * filters.limit
 
     const [rows, countResult] = await Promise.all([
-      query.limit(filters.limit).offset(offset).orderBy('permit.createdAt', 'desc').execute(),
-      query.select(sql`count(*)`.as('count')).executeTakeFirst(),
+      base
+        .select([
+          'permit.id',
+          'permit.userId',
+          'permit.type',
+          'permit.category',
+          'permit.description',
+          'permit.startDate',
+          'permit.endDate',
+          'permit.attachmentUrl',
+          'permit.status',
+          'permit.notes',
+          'permit.overtimeHours',
+          'permit.reimburseAmount',
+          'permit.reimburseReceiptUrl',
+          'permit.loanAmount',
+          'permit.loanTenorMonths',
+          'permit.createdAt',
+          'user.name as userName',
+          'user.department as userDepartment',
+        ])
+        .limit(filters.limit)
+        .offset(offset)
+        .orderBy('permit.createdAt', 'desc')
+        .execute(),
+      base.select(sql`count(*)`.as('count')).executeTakeFirst(),
     ])
 
     const items = rows.map((r: any) => ({

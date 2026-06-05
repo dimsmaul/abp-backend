@@ -12,7 +12,9 @@ export const checkOutSchema = z.object({
 
 export const attendanceQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(10),
+  // Admin web table can request up to 500 per page so big departments
+  // load in fewer round-trips. Mobile callers stay well under this.
+  limit: z.coerce.number().min(1).max(500).default(10),
   from: z.string().optional(),
   to: z.string().optional(),
   userId: z.string().optional(),

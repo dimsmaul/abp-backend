@@ -1,31 +1,15 @@
-import { OpenAPIHono, createRoute } from '@hono/zod-openapi'
+import { Hono } from 'hono'
 import { DashboardController } from './dashboard.controller'
 import { roleGuard } from '../../lib/rbac'
-import { z } from '../../lib/openapi'
 
-const dashboard = new OpenAPIHono()
+// NOTE: OpenAPIHono `app.openapi(route, guard, handler)` silently fails to
+// dispatch (same bug documented in attendance.route.ts + permit.route.ts).
+// Use plain Hono methods so the handler actually wires into the router.
+const dashboard = new Hono()
 const controller = new DashboardController()
 
-const getSummaryRoute = createRoute({
-  method: 'get',
-  path: '/web/dashboard/summary',
-  summary: 'Get dashboard summary stats',
-  tags: ['Dashboard'],
-  security: [{ Bearer: [] }],
-  responses: {
-    200: {
-      description: 'Summary statistics',
-      content: {
-        'application/json': {
-          schema: z.object({
-            data: z.any(),
-          }),
-        },
-      },
-    },
-  },
-})
-
-dashboard.openapi(getSummaryRoute, roleGuard(['manager', 'admin']), (c) => controller.getSummary(c))
+dashboard.get('/web/dashboard/summary', roleGuard(['manager', 'admin']), (c) =>
+  controller.getSummary(c),
+)
 
 export default dashboard
