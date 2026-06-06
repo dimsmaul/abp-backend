@@ -18,6 +18,7 @@ export const createOfficeSchema = z.object({
   workStartTime: timeString.optional().nullable(),
   workEndTime: timeString.optional().nullable(),
   lateThresholdMinutes: z.number().int().min(0).max(240).optional().nullable(),
+  status: z.enum(['active', 'disabled']).default('active'),
 })
 
 export const updateOfficeSchema = z.object({
@@ -33,12 +34,17 @@ export const updateOfficeSchema = z.object({
   workStartTime: timeString.optional().nullable(),
   workEndTime: timeString.optional().nullable(),
   lateThresholdMinutes: z.number().int().min(0).max(240).optional().nullable(),
+  status: z.enum(['active', 'disabled']).optional(),
 })
 
 // Mobile presence flow: filter offices the user is potentially inside.
 // regency is reverse-geocoded on the device.
 export const findOfficesQuerySchema = z.object({
   regency: z.string().optional(),
+  // `status` filter — defaults to 'active' so the mobile presence flow
+  // can never grab a disabled office. Web admin can pass 'all' to see
+  // every office regardless of state.
+  status: z.enum(['active', 'disabled', 'all']).optional(),
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(200).default(50),
 })

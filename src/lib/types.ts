@@ -115,6 +115,7 @@ export interface OfficeTable {
   workStartTime?: string | null
   workEndTime?: string | null
   lateThresholdMinutes?: number | null
+  status: 'active' | 'disabled'
   createdAt: Generated<Date>
   updatedAt: Generated<Date>
 }

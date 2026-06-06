@@ -100,7 +100,13 @@ async function evaluateZone(lat: number, lng: number) {
   // Repository returns a paginated wrapper `{ items, page, limit, total }`,
   // so we must read `.items` (not iterate the wrapper). Limit set high
   // enough to cover the active office list in one fetch.
-  const { items: offices } = await officeRepo.findAll({ page: 1, limit: 500 })
+  // Skip disabled offices — a paused location must not accept new
+  // check-ins even if its polygon still covers the user.
+  const { items: offices } = await officeRepo.findAll({
+    page: 1,
+    limit: 500,
+    status: 'active',
+  })
 
   if (offices.length === 0) {
     return { isWithinZone: true, nearestOfficeName: '', matchedOffice: null as any }

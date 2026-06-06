@@ -19,25 +19,27 @@ export class OfficeRepository {
     page: number
     limit: number
     regency?: string
+    /** 'active' | 'disabled' | 'all'. Repository-level safety net: when
+     * omitted we default to 'active' so a forgotten filter at the
+     * module layer can't accidentally include disabled offices in a
+     * mobile presence call. */
+    status?: 'active' | 'disabled' | 'all'
   }) {
     const offset = (filters.page - 1) * filters.limit
-    const baseList = () => {
-      let q = db.selectFrom('office').selectAll()
+    const status = filters.status ?? 'active'
+    const applyFilters = <T extends { where: (...args: any[]) => T }>(q: T): T => {
+      let out = q
       if (filters.regency) {
-        // Case-insensitive partial match — the device geocoder may return
-        // "Kota Surabaya" while the office record uses "Surabaya" or vice
-        // versa, so a substring filter is more forgiving than equality.
-        q = q.where(sql<boolean>`lower(regency) like ${'%' + filters.regency.toLowerCase() + '%'}`)
+        out = out.where(sql<boolean>`lower(regency) like ${'%' + filters.regency.toLowerCase() + '%'}`)
       }
-      return q
-    }
-    const baseCount = () => {
-      let q = db.selectFrom('office').select(sql`count(*)`.as('count'))
-      if (filters.regency) {
-        q = q.where(sql<boolean>`lower(regency) like ${'%' + filters.regency.toLowerCase() + '%'}`)
+      if (status !== 'all') {
+        out = out.where('status', '=', status)
       }
-      return q
+      return out
     }
+    const baseList = () => applyFilters(db.selectFrom('office').selectAll())
+    const baseCount = () =>
+      applyFilters(db.selectFrom('office').select(sql`count(*)`.as('count')))
     const [items, countResult] = await Promise.all([
       baseList()
         .orderBy('name', 'asc')
