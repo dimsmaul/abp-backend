@@ -21,6 +21,7 @@
     "kysely": "^0.28.16",
     "pg": "^8.20.0",
     "sharp": "^0.34.5",
+    "@img/sharp-linux-x64": "0.34.5",
     "zod": "^4.3.6",
     "zod-openapi": "^5.4.6"
   },
@@ -28,8 +29,5 @@
     "@types/bun": "latest",
     "@types/pg": "^8.20.0",
     "esbuild": "^0.28.0"
-  },
-  "optionalDependencies": {
-    "@img/sharp-linux-x64": "0.34.5"
   }
 }
