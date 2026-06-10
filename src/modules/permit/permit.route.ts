@@ -15,6 +15,7 @@ const controller = new PermitController()
 permit.get('/mobile/permits/me', authGuard(), (c) =>
   controller.findMyPermits(c),
 )
+permit.get('/mobile/permits/:id', authGuard(), (c) => controller.getMyDetail(c))
 permit.post('/mobile/permits', authGuard(), (c) => controller.create(c))
 
 // Web (manager / admin) — list every permit and validate them.
