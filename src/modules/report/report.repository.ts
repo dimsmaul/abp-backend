@@ -18,6 +18,9 @@ export class ReportRepository {
       .innerJoin('user', 'user.id', 'fieldReport.userId')
       .select([
         'fieldReport.id',
+        // Controller's getMyDetail enforces ownership by comparing
+        // result.userId against the session user — must be selected.
+        'fieldReport.userId',
         'fieldReport.category',
         'fieldReport.description',
         'fieldReport.photoUrl',

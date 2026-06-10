@@ -11,6 +11,16 @@ export class PermitController {
     return c.json(successResponse(result.data, 'Permits fetched'))
   }
 
+  async getMyDetail(c: Context) {
+    const user = c.get('user')
+    const id = c.req.param('id') ?? ''
+    const result = await this.module.fetchMyDetail(user.id, id)
+    if (result.error) {
+      return c.json({ message: result.error.message, error: result.error }, result.status as any)
+    }
+    return c.json(successResponse(result.data, 'Permit fetched'))
+  }
+
   async findAll(c: Context) {
     const query = c.req.query()
     const result = await this.module.fetchAll(query)
@@ -20,7 +30,13 @@ export class PermitController {
 
   async create(c: Context) {
     const user = c.get('user')
-    const body = await c.req.json()
+    // Reimburse sends a receipt photo as multipart; everything else is JSON.
+    // Branch on the content-type so both shapes work on the same endpoint.
+    const ct = c.req.header('content-type') ?? ''
+    const body =
+      ct.includes('multipart/form-data') || ct.includes('application/x-www-form-urlencoded')
+        ? await c.req.parseBody()
+        : await c.req.json()
     const result = await this.module.processCreate(user.id, body)
 
     if (result.error) {

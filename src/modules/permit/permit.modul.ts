@@ -1,6 +1,7 @@
 import { PermitRepository } from './permit.repository'
 import { LeaveBalanceRepository } from '../leave_balance/leave_balance.repository'
 import { createPermitSchema, validatePermitSchema } from './permit.schema'
+import { uploadToR2 } from '../../lib/s3'
 
 /**
  * Count whole working days (Mon-Fri) between two dates inclusive.
@@ -48,7 +49,56 @@ export class PermitModule {
     return { data, status: 200 }
   }
 
+  async fetchMyDetail(userId: string, id: string) {
+    const data = await this.repository.findById(id)
+    if (!data) {
+      return { error: { code: 'PERMIT_NOT_FOUND', message: 'Permit not found' }, status: 404 }
+    }
+    if (data.userId !== userId) {
+      return { error: { code: 'FORBIDDEN', message: 'Not your permit' }, status: 403 }
+    }
+    return { data, status: 200 }
+  }
+
   async processCreate(userId: string, body: any) {
+    // Multipart receipt upload: detect the File field BEFORE validation so we
+    // can promote it to `reimburseReceiptUrl` and not trip the URL schema.
+    const receipt = body?.receipt
+    if (receipt && typeof receipt === 'object' && typeof receipt.arrayBuffer === 'function') {
+      const file = receipt as File
+      // Strict allowlist: only image MIMEs we expect from the mobile camera.
+      // Extension is server-derived from the verified MIME so a hostile
+      // filename like `evil.html` can't ride along.
+      const ALLOWED_RECEIPT_MIME: Record<string, string> = {
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+      }
+      const MAX_RECEIPT_BYTES = 8 * 1024 * 1024 // 8 MB
+      const mime = (file.type || '').toLowerCase()
+      const ext = ALLOWED_RECEIPT_MIME[mime]
+      if (!ext) {
+        return {
+          error: {
+            code: 'INVALID_FILE_TYPE',
+            message: 'Receipt must be a JPEG, PNG, or WEBP image',
+          },
+          status: 400,
+        }
+      }
+      if (typeof file.size === 'number' && file.size > MAX_RECEIPT_BYTES) {
+        return {
+          error: { code: 'FILE_TOO_LARGE', message: 'Receipt exceeds 8 MB' },
+          status: 413,
+        }
+      }
+      const key = `permits/reimburse/${userId}-${crypto.randomUUID()}.${ext}`
+      const url = await uploadToR2(file, key, mime)
+      body.reimburseReceiptUrl = url
+      delete body.receipt
+    }
+
     const validated = createPermitSchema.safeParse(body)
     if (!validated.success) {
       return { error: { code: 'VALIDATION_ERROR', message: 'Invalid data', details: validated.error.flatten() }, status: 422 }
@@ -103,9 +153,17 @@ export class PermitModule {
       }
     }
 
+    // Legacy DB column `type` only knows sick/leave/permit. Normalize the
+    // new categories down to 'permit' on insert so direct API callers
+    // (those that didn't bother with the type+category split) don't blow up
+    // the enum check.
+    const legacyTypes = new Set(['sick', 'leave', 'permit'])
+    const legacyType = legacyTypes.has(payload.type) ? payload.type : 'permit'
+
     const data = await this.repository.create({
       userId,
       ...payload,
+      type: legacyType,
       category,
       daysUsed,
     } as any)
